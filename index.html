@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="bn"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Deutsch Duo</title>
+<style>
+:root{--bg:#f3f5fa;--card:#fff;--tx:#101a30;--mut:#6b7488;--ink:#16254a;--gold:#e9b100;--red:#c8102e;--ok:#1f8a5b;--bd:#dfe4ef}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1426;--card:#16203a;--tx:#eef1f8;--mut:#98a2bb;--ink:#7fa0ff;--bd:#27345a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 system-ui,-apple-system,"Segoe UI","Noto Sans Bengali",sans-serif;padding:env(safe-area-inset-top) 0 0}
+main{max-width:640px;margin:0 auto;padding:12px 14px 96px}
+.flag{height:5px;background:linear-gradient(#111 33%,var(--red) 33% 66%,var(--gold) 66%)}
+h1,h2{font-family:Georgia,serif;margin:6px 0}h1{font-size:24px}h2{font-size:18px}
+.mut{color:var(--mut);font-size:13px}.c{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin:12px 0}
+input,select,textarea{width:100%;padding:10px;margin:4px 0;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+.b{width:100%;padding:11px;border:0;border-radius:8px;background:var(--ink);color:#fff;font:inherit;margin-top:6px}
+.b.s{background:var(--bg);color:var(--tx);border:1px solid var(--bd)}
+.r{display:flex;gap:8px}.r>*{flex:1}.sp{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.bar{height:9px;background:var(--bd);border-radius:5px;overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;background:var(--ok)}
+.t{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--bd)}.t:last-child{border:0}
+.t input{width:22px;height:22px;margin:0;flex:none}.t.d span{text-decoration:line-through;color:var(--mut)}
+.chip{display:inline-block;padding:6px 10px;margin:3px 3px 3px 0;border:1px solid var(--bd);border-radius:99px;font-size:14px;background:var(--bg);color:var(--tx)}
+.chip.on{background:var(--ok);color:#fff;border-color:var(--ok)}
+.tag{font-size:11px;padding:2px 7px;border-radius:99px;background:var(--bd);margin-right:4px}
+.w{padding:8px 0;border-bottom:1px solid var(--bd)}.x{border:0;background:none;color:var(--mut);font-size:18px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;padding:11px 2px;border:0;background:none;color:var(--mut);font-size:12px}nav button.on{color:var(--ink);font-weight:700;box-shadow:inset 0 3px var(--gold)}
+.big{font-family:Georgia,serif;font-size:30px;text-align:center;margin:18px 0}
+.hl{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
+</style></head><body><div class="flag"></div><main id="app"></main>
+<nav id="nav"></nav>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,doc,setDoc,getDoc,getDocs,collection,addDoc,deleteDoc,updateDoc,onSnapshot,query,orderBy,limit} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ==== 1) Firebase config এখানে বসাও ====
+const firebaseConfig={apiKey:"YOUR_API_KEY",authDomain:"YOUR_PROJECT.firebaseapp.com",projectId:"YOUR_PROJECT",appId:"YOUR_APP_ID"};
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+
+// ==== প্ল্যান ====
+const START=new Date(2026,10,1);
+const WK=[
+["Kapitel 1, 2, 3","W-Fragen, Aussagesatz, Verbkonjugation, Pluralbildung, ein/eine, kein/keine",["Personalpronomen","Sein/Haben/Heißen","Artikel","Nominativ","Satzbau","Fragen","Negation"]],
+["Kapitel 4","Positionen im Satz, Akkusativ, mögen & möchten",["Akkusativ","Konjunktionen"]],
+["Kapitel 5","Modalverben, Possessivartikel, Zeitangaben",["Modalverben","Possessivartikel","Zeitangaben"]],
+["Kapitel 6","Datum, Trennbare Verben, mich/dich, für+Akk, Präteritum haben/sein, Imperativ",["Trennbare Verben","Imperativ"]],
+["Kapitel 7 & 8 (ভারী)","mit+Dativ, Dativ-Pronomen, Modalverben, Dativ",["Dativ","Dativ-Pronomen","Präpositionen"]],
+["Kapitel 9","Orts-Präpositionen, Dativ vs Akkusativ, Wechselpräpositionen",["Wechselpräpositionen","Präpositionen"]],
+["Kapitel 10","Perfekt, Partizip II, Vergangenheit",["Perfekt","Zeitangaben"]],
+["Kapitel 11 & 12 (ভারী)","Dativ-Pronomen, welcher, dieser, man, Wer/Wen/Wem/Was, zuerst/dann/später",["Dativ-Pronomen","welcher/dieser","man","Wer/Wen/Wem/Was"]],
+["Revision","সব grammar আবার + প্রতিদিন ১টা Goethe A1 sample test",["সব ২০ topic আবার"]]];
+const PREP=["বই ও PDF গুছাও","শব্দের list বানাও","Anki / flashcard ঠিক করো","KKS Basic playlist শুরু করো"];
+const MAIN={0:"KKS ক্লাস (১ম ভিডিও) + নোট",1:"KKS ক্লাস (পরের ভিডিও) + PDF topic",2:"বইয়ের Kapitel পড়া ও শোনা",3:"বইয়ের Übungen, খাতায় লেখা",4:"সপ্তাহের grammar ও শব্দ revision + ৩০ মিনিটের test",5:"১৫–২০টা বাক্য বানানো, জোরে বলা, শোনা",6:"হালকা কিন্তু পুরো সময়: শোনা, পড়া, ভুলের তালিকা"};
+const DN=["রবি","সোম","মঙ্গল","বুধ","বৃহস্পতি","শুক্র","শনি"];
+// শুক্র=৫ ও বৃহস্পতি=৪ এর মূল কাজ প্ল্যান অনুযায়ী
+MAIN[4]="নিজে ১৫–২০টা বাক্য বানানো, জোরে বলা ও শোনা";MAIN[5]="সপ্তাহের grammar ও শব্দ revision + ৩০ মিনিটের test";
+const ds=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const addD=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const weekOf=d=>Math.floor((new Date(d.getFullYear(),d.getMonth(),d.getDate())-START)/864e5/7)+1;
+function tasksFor(d){const w=weekOf(d),wd=d.getDay();
+ if(w<1)return PREP.map((t,i)=>["p"+i,t]);
+ const heavy=(w===5||w===8)&&wd===2,kks=wd===0||wd===1||heavy;
+ const main=heavy?"KKS ক্লাস ১.৫ ঘণ্টা (ভারী সপ্তাহ)":w===9?"আজকের Goethe A1 sample test (Hören, Lesen, Schreiben, Sprechen)":MAIN[wd];
+ return kks?[["a","আগের ২০ শব্দ revise (১৫ মি)"],["b",main+" (১.৫ ঘণ্টা)"],["c","নোট গুছানো / PDF topic (২০ মি)"],["e","৫টা বাক্য বানানো, জোরে পড়া (১৫ মি)"]]
+ :[["a","আগের ২০ শব্দ + ৩ দিন আগের revise (২০ মি)"],["b",main+" (১ ঘণ্টা)"],["c","লিখে অনুশীলন (৩০ মি)"],["d","জোরে পড়া, শোনা, বলা (২০ মি)"],["e","৫টা বাক্য লেখা, ঘুমের আগে শব্দ (১০ মি)"]]}
+
+// ==== state ====
+let U=null,me={name:"",prep:{}},words=[],days={},tab="home",feed=[],others=null,quiz=null,unsubs=[],flt="All",showMean={};
+const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const TD=()=>ds(new Date()),dayD=()=>days[TD()]||{tasks:{},grammar:[],wc:0};
+const save=(date,data)=>setDoc(doc(db,"users",U.uid,"days",date),data,{merge:true});
+const post=text=>addDoc(collection(db,"feed"),{uid:U.uid,name:me.name,text,t:Date.now()});
+
+onAuthStateChanged(auth,async u=>{unsubs.forEach(f=>f());unsubs=[];U=u;
+ if(!u){loginView();return}
+ const s=await getDoc(doc(db,"users",u.uid));me=s.exists()?s.data():{name:"",prep:{}};me.prep=me.prep||{};
+ if(!me.name){me.name=(prompt("তোমার নাম কী?")||u.email.split("@")[0]).trim();await setDoc(doc(db,"users",u.uid),me,{merge:true})}
+ unsubs.push(onSnapshot(collection(db,"users",u.uid,"words"),sn=>{words=sn.docs.map(d=>({id:d.id,...d.data()}));render()}));
+ unsubs.push(onSnapshot(collection(db,"users",u.uid,"days"),sn=>{days={};sn.docs.forEach(d=>days[d.id]=d.data());render()}));
+ unsubs.push(onSnapshot(query(collection(db,"feed"),orderBy("t","desc"),limit(30)),sn=>{feed=sn.docs.map(d=>d.data());render()}));
+});
+function loginView(){$("#nav").innerHTML="";$("#app").innerHTML=`<h1>🇩🇪 Deutsch Duo</h1><div class="c"><input id="em" type="email" placeholder="Email"><input id="pw" type="password" placeholder="Password"><button class="b" id="li">Login</button><div class="mut" id="er"></div></div>`;
+ $("#li").onclick=()=>signInWithEmailAndPassword(auth,$("#em").value,$("#pw").value).catch(()=>$("#er").textContent="Email বা password ভুল।")}
+
+function streak(dm){let n=0,d=new Date();if(!(dm[ds(d)]?.wc>0))d=addD(d,-1);while(dm[ds(d)]?.wc>0){n++;d=addD(d,-1)}return n}
+function render(){if(!U)return;
+ $("#nav").innerHTML=[["home","আজ"],["words","শব্দ"],["quiz","কুইজ"],["plan","প্ল্যান"],["us","আমরা"]].map(([k,l])=>`<button data-tab="${k}" class="${tab===k?"on":""}">${l}</button>`).join("");
+ $("#app").innerHTML={home,words:wordsV,quiz:quizV,plan:planV,us:usV}[tab]();
+}
+function home(){const now=new Date(),w=weekOf(now),dd=dayD(),tk=tasksFor(now),done=tk.filter(([i])=>dd.tasks?.[i]).length,wc=dd.wc||0,W=WK[Math.min(Math.max(w,1),9)-1];
+ const total=tk.length+1,pct=Math.round((done+(wc>=20?1:wc/20))/total*100);
+ return `<div class="sp"><h1>${w<1?"প্রস্তুতি":"সপ্তাহ "+w}</h1><button class="x" data-act="out">Logout</button></div>
+ <div class="mut">${DN[now.getDay()]}, ${ds(now)} · ${esc(me.name)} · 🔥 ${streak(days)} দিন</div>
+ <div class="c"><div class="sp"><h2>আজকের অগ্রগতি</h2><b>${pct}%</b></div><div class="bar"><i style="width:${pct}%"></i></div>
+ ${w>=1?`<div class="mut"><b>${W[0]}</b><br>${W[1]}</div>`:""}</div>
+ <div class="c"><h2>আজকের টাস্ক</h2>${tk.map(([i,t])=>`<label class="t ${dd.tasks?.[i]?"d":""}"><input type="checkbox" data-task="${i}" ${dd.tasks?.[i]?"checked":""}><span>${t}</span></label>`).join("")}
+ <div class="t"><span>✍️ ২০টা নতুন শব্দ: <b>${wc}/20</b> (সকাল ${words.filter(x=>x.date===TD()&&x.slot==="সকাল").length}/১০, রাত ${words.filter(x=>x.date===TD()&&x.slot==="রাত").length}/১০)</span></div></div>
+ ${w>=1?`<div class="c"><h2>আজ কোন grammar শেষ হলো?</h2><div class="mut">ট্যাপ করে টিক দাও</div>${W[2].map(g=>`<button class="chip ${dd.grammar?.includes(g)?"on":""}" data-g="${esc(g)}">${esc(g)}</button>`).join("")}</div>`:""}
+ ${w===5||w===8?'<div class="c hl">⚠️ ভারী সপ্তাহ: মঙ্গলবারেও KKS ক্লাস।</div>':""}
+ ${now.getDay()===5?'<div class="c hl"><b>শুক্রবার test:</b> "কুইজ" ট্যাব থেকে সপ্তাহের ৩০ শব্দ ও ১০ noun-এর artikel দাও।</div>':""}`}
+
+function wordRow(x,del){return `<div class="w"><div class="sp"><div><b>${x.cat==="Noun"?esc(x.art)+" ":""}${esc(x.de)}</b> <button class="x" data-say="${esc(x.de)}">🔊</button><br><span class="tag">${x.cat}</span>${esc(x.bn)}</div>${del?`<button class="x" data-del="${x.id}">✕</button>`:""}</div>${x.ex?`<div class="mut">${esc(x.ex)}</div>`:""}</div>`}
+function wordsV(){const t=TD(),tw=words.filter(x=>x.date===t),y=ds(addD(new Date(),-1)),d3=ds(addD(new Date(),-3));
+ const rev=words.filter(x=>x.date===y||x.date===d3),wrong=words.filter(x=>x.wrong);
+ const all=words.filter(x=>flt==="All"||x.cat===flt).sort((a,b)=>b.date<a.date?-1:1);
+ const hr=new Date().getHours()<15?"সকাল":"রাত";
+ return `<h1>শব্দ</h1><div class="c"><div class="sp"><h2>নতুন শব্দ</h2><b>${tw.length}/20</b></div><div class="bar"><i style="width:${Math.min(100,tw.length*5)}%"></i></div>
+ <input id="de" placeholder="German শব্দ (যেমন Tisch)"><input id="bn" placeholder="বাংলা অর্থ">
+ <div class="r"><select id="cat">${["Noun","Verb","Adjective","Conjunction","Adverb","Preposition","Pronoun","Phrase"].map(c=>`<option>${c}</option>`).join("")}</select><select id="art"><option>der</option><option>die</option><option>das</option></select><select id="slot"><option ${hr==="সকাল"?"selected":""}>সকাল</option><option ${hr==="রাত"?"selected":""}>রাত</option></select></div>
+ <input id="ex" placeholder="নিজের ছোট বাক্য (ঐচ্ছিক)"><button class="b" data-act="add">যোগ করো</button><div class="mut" id="msg"></div></div>
+ <div class="c"><h2>আজ যোগ করা</h2>${tw.map(x=>wordRow(x,1)).join("")||'<div class="mut">এখনো কিছু নেই।</div>'}</div>
+ <div class="c"><h2>Revision (গতকাল + ৩ দিন আগে)</h2><div class="mut">অর্থ মনে করে ট্যাপ করো</div>${rev.map(x=>`<div class="w" data-mean="${x.id}"><b>${x.cat==="Noun"?x.art+" ":""}${esc(x.de)}</b> — ${showMean[x.id]?esc(x.bn):"•••"}</div>`).join("")||'<div class="mut">আজ revision নেই।</div>'}</div>
+ <div class="c"><h2>ভুলের তালিকা (${wrong.length})</h2>${wrong.map(x=>wordRow(x,0)).join("")||'<div class="mut">ফাঁকা। 👍</div>'}</div>
+ <div class="c"><div class="sp"><h2>সব শব্দ (${words.length})</h2><select id="flt" style="width:auto"><option>All</option>${["Noun","Verb","Adjective","Conjunction","Adverb","Preposition","Pronoun","Phrase"].map(c=>`<option ${c===flt?"selected":""}>${c}</option>`).join("")}</select></div>${all.map(x=>wordRow(x,0)).join("")}</div>`}
+
+function quizV(){if(!quiz)return `<h1>কুইজ</h1><div class="c"><h2>অর্থ কুইজ</h2><div class="mut">গত ৭ দিনের শব্দ থেকে ৩০টা</div><button class="b" data-q="mean">শুরু করো</button></div>
+ <div class="c"><h2>Artikel কুইজ</h2><div class="mut">noun-এর der/die/das, সর্বোচ্চ ১০টা</div><button class="b" data-q="art">শুরু করো</button></div><div class="mut">শব্দ নেই? আগে "শব্দ" ট্যাবে যোগ করো।</div>`;
+ const q=quiz;if(q.i>=q.list.length)return `<h1>শেষ!</h1><div class="c big">${q.ok}/${q.list.length}</div><div class="mut" style="text-align:center">ভুলগুলো "ভুলের তালিকায়" গেছে, শনিবার আবার দেখো।</div><button class="b" data-q="end">ঠিক আছে</button>`;
+ const x=q.list[q.i];
+ if(q.mode==="art")return `<div class="mut">${q.i+1}/${q.list.length}</div><div class="big">${esc(x.de)}</div><div class="r">${["der","die","das"].map(a=>`<button class="b ${q.pick?(a===x.art?"":"s"):""}" style="${q.pick&&a===x.art?"background:var(--ok)":""}${q.pick===a&&a!==x.art?";background:var(--red)":""}" data-pick="${a}">${a}</button>`).join("")}</div>${q.pick?'<button class="b s" data-q="next">পরেরটা</button>':""}`;
+ return `<div class="mut">${q.i+1}/${q.list.length}</div><div class="big">${x.cat==="Noun"?"":""}${esc(x.de)}</div>${q.show?`<div class="big" style="font-size:22px">${x.cat==="Noun"?x.art+" · ":""}${esc(x.bn)}</div><div class="r"><button class="b" style="background:var(--ok)" data-ans="1">জানতাম ✓</button><button class="b" style="background:var(--red)" data-ans="0">ভুল ✗</button></div>`:'<button class="b s" data-q="show">অর্থ দেখাও</button>'}`}
+
+function planV(){const cw=weekOf(new Date());
+ return `<h1>৯ সপ্তাহের প্ল্যান</h1><div class="c ${cw<1?"hl":""}"><h2>প্রস্তুতি (২৯–৩১ অক্টোবর)</h2>${PREP.map((p,i)=>`<label class="t"><input type="checkbox" data-prep="${i}" ${me.prep[i]?"checked":""}><span>${p}</span></label>`).join("")}</div>
+ ${WK.map((w,i)=>{const s=addD(START,i*7),e=i===8?new Date(2026,11,31):addD(s,6);return `<div class="c ${cw===i+1?"hl":""}"><h2>সপ্তাহ ${i+1}</h2><div class="mut">${ds(s)} → ${ds(e)}</div><b>${w[0]}</b><div class="mut">${w[1]}</div><div style="margin-top:6px">${w[2].map(g=>`<span class="tag">${esc(g)}</span>`).join("")}</div></div>`}).join("")}
+ <div class="c mut">প্রতিদিন ৩ ঘণ্টা + ২০ শব্দ। ব্যস্ত দিনে কমপক্ষে ২ ঘণ্টা। শব্দ বেশি ভুলে গেলে ১৫-তে নামাও।</div>`}
+
+function usV(){if(!others){loadOthers();return `<h1>আমরা</h1><div class="mut">লোড হচ্ছে…</div>`}
+ const w=weekOf(new Date()),cards=others.map(o=>{const dm=o.days,td=dm[TD()]||{},now=new Date();let wk=0,tot=0;
+  for(let i=0;i<7;i++){const d=addD(now,-i);if(weekOf(d)!==w)continue;const t=tasksFor(d);tot+=t.length;wk+=t.filter(([k])=>dm[ds(d)]?.tasks?.[k]).length}
+  return `<div class="c ${o.uid===U.uid?"hl":""}"><div class="sp"><h2>${esc(o.name)}${o.uid===U.uid?" (তুমি)":""}</h2><span>🔥 ${streak(dm)}</span></div>
+  <div class="mut">আজকের শব্দ: ${td.wc||0}/20</div><div class="bar"><i style="width:${Math.min(100,(td.wc||0)*5)}%"></i></div>
+  <div class="mut">এ সপ্তাহের টাস্ক: ${wk}/${tot}</div><div class="bar"><i style="width:${tot?wk/tot*100:0}%"></i></div>
+  <div class="mut">আজকের grammar: ${(td.grammar||[]).join(", ")||"—"}</div></div>`}).join("");
+ return `<h1>আমরা</h1>${cards}<div class="c"><h2>Activity</h2>${feed.map(f=>`<div class="w"><b>${esc(f.name)}</b> ${esc(f.text)}<div class="mut">${new Date(f.t).toLocaleString("bn-BD")}</div></div>`).join("")||'<div class="mut">এখনো কিছু নেই।</div>'}</div>`}
+async function loadOthers(){const us=await getDocs(collection(db,"users"));const out=[];
+ for(const u of us.docs){const dd=await getDocs(collection(db,"users",u.id,"days"));const dm={};dd.docs.forEach(x=>dm[x.id]=x.data());out.push({uid:u.id,name:u.data().name||"?",days:dm})}
+ others=out;render()}
+
+// ==== events ====
+document.addEventListener("change",async e=>{const t=e.target;
+ if(t.dataset.task){const i=t.dataset.task,d=dayD();await save(TD(),{tasks:{...d.tasks,[i]:t.checked}});
+  if(t.checked){const x=tasksFor(new Date()).find(a=>a[0]===i);post("শেষ করেছে: "+x[1].replace(/\s*\(.*\)$/,""))}}
+ if(t.dataset.prep){me.prep[t.dataset.prep]=t.checked;await setDoc(doc(db,"users",U.uid),{prep:me.prep},{merge:true});render()}
+ if(t.id==="flt"){flt=t.value;render()}
+ if(t.id==="cat"){$("#art").style.display=t.value==="Noun"?"":"none"}});
+document.addEventListener("click",async e=>{const t=e.target.closest("button,[data-mean]");if(!t||!U)return;const D=t.dataset;
+ if(D.tab){tab=D.tab;if(tab==="us")others=null;render()}
+ if(D.act==="out")signOut(auth);
+ if(D.say){const u=new SpeechSynthesisUtterance(D.say);u.lang="de-DE";speechSynthesis.speak(u)}
+ if(D.g){const d=dayD(),has=(d.grammar||[]).includes(D.g),g=has?d.grammar.filter(x=>x!==D.g):[...(d.grammar||[]),D.g];await save(TD(),{grammar:g});if(!has)post("grammar শিখেছে: "+D.g)}
+ if(D.del){await deleteDoc(doc(db,"users",U.uid,"words",D.del));await save(TD(),{wc:Math.max(0,(dayD().wc||1)-1)})}
+ if(D.mean){showMean[D.mean]=!showMean[D.mean];render()}
+ if(D.act==="add"){const de=$("#de").value.trim(),bn=$("#bn").value.trim(),cat=$("#cat").value;
+  if(!de||!bn){$("#msg").textContent="German শব্দ আর বাংলা অর্থ দুটোই দাও।";return}
+  if(words.some(x=>x.de.toLowerCase()===de.toLowerCase())){$("#msg").textContent="⚠️ এই শব্দ আগেই আছে।";return}
+  if(words.filter(x=>x.date===TD()&&x.slot===$("#slot").value).length>=10&&!confirm("এই slot-এ ১০টা হয়ে গেছে। তবুও যোগ করবে?"))return;
+  const w={de,bn,cat,ex:$("#ex").value.trim(),slot:$("#slot").value,date:TD(),wrong:false};if(cat==="Noun")w.art=$("#art").value;
+  await addDoc(collection(db,"users",U.uid,"words"),w);const n=(dayD().wc||0)+1;await save(TD(),{wc:n});
+  if(n===20)post("আজকের ২০টা শব্দ শেষ করেছে 🎉")}
+ if(D.q==="mean"||D.q==="art"){const from=ds(addD(new Date(),-7));let l=words.filter(x=>x.date>=from);if(D.q==="art")l=l.filter(x=>x.cat==="Noun"&&x.art);
+  l=l.sort(()=>Math.random()-.5).slice(0,D.q==="art"?10:30);if(!l.length){alert("এই সময়ের শব্দ নেই।");return}quiz={mode:D.q,list:l,i:0,ok:0,show:false,pick:null};render()}
+ if(D.q==="show"){quiz.show=true;render()}
+ if(D.q==="next"){quiz.i++;quiz.pick=null;render();if(quiz.i>=quiz.list.length)finish()}
+ if(D.q==="end"){quiz=null;render()}
+ if(D.pick){if(quiz.pick)return;const x=quiz.list[quiz.i];quiz.pick=D.pick;if(D.pick===x.art)quiz.ok++;else await updateDoc(doc(db,"users",U.uid,"words",x.id),{wrong:true});render()}
+ if(D.ans!==undefined&&quiz){const x=quiz.list[quiz.i];if(D.ans==="1")quiz.ok++;else await updateDoc(doc(db,"users",U.uid,"words",x.id),{wrong:true});quiz.i++;quiz.show=false;render();if(quiz.i>=quiz.list.length)finish()}
+});
+function finish(){post(`কুইজ দিয়েছে: ${quiz.ok}/${quiz.list.length} ঠিক`)}
+</script></body></html>
