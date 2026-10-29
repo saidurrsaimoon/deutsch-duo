@@ -316,7 +316,7 @@ window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferred=e;
 document.addEventListener("input",e=>{if(e.target.id==="cm"){draft=e.target.value;typPing()}});
 document.addEventListener("keydown",e=>{if(e.target.id==="cm"&&e.key==="Enter")send()});
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
-const PUSH_URL="",VAPID=""; // filled after Cloudflare + FCM setup
+const PUSH_URL="https://our-life-push-api.saidur-r-saimoon.workers.dev",VAPID="BCUJCCz-9nKhVQmHPkeI3OY2FCuUfM-OT5atkTozr76_Q9Ccy-jP_DsD_uPbYJZsa73gWUPY47RKt6a4c4s6Xok"; // filled after Cloudflare + FCM setup
 let editing=null,replyTo=null,pressT=null,sx=0,sy=0,pm=false,usersMap={},pdays={},pwords=[],presT=null,firstChat=true,shownTab="",theme=localStorage.getItem("th")||"dark";
 const PUID=()=>Object.keys(PEOPLE).find(k=>k!==U?.uid);
 const pname=()=>usersMap[PUID()]?.name||chat.find(m=>m.uid!==U?.uid)?.name||"Partner";
