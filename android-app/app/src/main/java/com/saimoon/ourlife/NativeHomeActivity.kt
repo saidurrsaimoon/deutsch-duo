@@ -493,7 +493,7 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
                                             detectHorizontalDragGestures(
                                                 onHorizontalDrag = { _, amount -> drag += amount },
                                                 onDragEnd = { if (drag > 55f) replyTo = message; drag = 0f },
-                                                onHorizontalDragCancel = { drag = 0f }
+                                                onDragCancel = { drag = 0f }
                                             )
                                         }
                                         .pointerInput(message.id) {
