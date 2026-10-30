@@ -28,6 +28,12 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Install the exact Our Little Life drawing as launcher icon
+        run: |
+          mkdir -p android-app/app/src/main/res/drawable-nodpi
+          curl -L --fail --silent --show-error https://raw.githubusercontent.com/saidurrsaimoon/deutsch-duo/main/icon-512.png -o android-app/app/src/main/res/drawable-nodpi/our_life_icon.png
+          file android-app/app/src/main/res/drawable-nodpi/our_life_icon.png
+
       - name: Build signed debug APK
         run: gradle -p android-app assembleDebug --stacktrace
 
