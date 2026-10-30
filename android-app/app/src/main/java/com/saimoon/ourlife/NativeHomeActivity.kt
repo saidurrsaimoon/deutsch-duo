@@ -236,7 +236,7 @@ private fun AuthenticatedOurLifeApp(auth: FirebaseAuth) {
                         item { NativeFeatureCard("Meet & memories", "Plan the next meet and save old moments", "Our shared timeline", "heart", card, fg, muted, gradient) { selected = "Together" } }
                     }
                     "Chat" -> {
-                        item { NativeChatPanel(auth, card, fg, muted) }
+                        item { NativeChatPanel(auth, card, fg, muted) { selected = previousPage } }
                     }
                     "Learn" -> {
                         item { SectionHeading("Learn German together", "Deutsch Duo • A1 journey", fg, muted) }
@@ -391,7 +391,7 @@ private data class NativeChatMessage(
 )
 
 @Composable
-private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: Color) {
+private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: Color, onBack: () -> Unit) {
     val db = remember { FirebaseFirestore.getInstance() }
     val me = auth.currentUser
     val myName = when (me?.uid) {
@@ -481,7 +481,7 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (card == DarkCard) Color(0xFF075E54) else Color(0xFF128C7E)).padding(horizontal = 8.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.ArrowBack, "Back", tint = Color.White, modifier = Modifier.padding(9.dp))
+            Icon(Icons.Default.ArrowBack, "Back", tint = Color.White, modifier = Modifier.clickable { onBack() }.padding(9.dp))
             Surface(shape = CircleShape, color = Color.White.copy(alpha = .18f), modifier = Modifier.size(38.dp)) {
                 Box(contentAlignment = Alignment.Center) { Text("♡", color = Color.White, fontSize = 22.sp) }
             }
