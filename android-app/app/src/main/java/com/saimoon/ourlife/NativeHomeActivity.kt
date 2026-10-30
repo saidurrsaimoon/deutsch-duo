@@ -1,6 +1,8 @@
 package com.saimoon.ourlife
 
 import android.os.Bundle
+import java.net.HttpURLConnection
+import java.net.URL
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
@@ -9,6 +11,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import androidx.activity.ComponentActivity
