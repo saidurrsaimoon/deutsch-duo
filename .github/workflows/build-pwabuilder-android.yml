@@ -2,11 +2,6 @@ name: Build Our Life with PWABuilder (Bubblewrap TWA)
 
 on:
   workflow_dispatch:
-    inputs:
-      backup_password:
-        description: "Create a new strong password to encrypt the ZIP backup (remember it)"
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -26,11 +21,10 @@ jobs:
       - name: Build signed TWA and encrypted ZIP
         shell: bash
         env:
-          BACKUP_PASSWORD: ${{ inputs.backup_password }}
+          BACKUP_PASSWORD: ${{ secrets.ZIP_BACKUP_PASSWORD }}
         run: |
           set -euo pipefail
-          test -n "$BACKUP_PASSWORD"
-          echo "::add-mask::$BACKUP_PASSWORD"
+          test -n "$BACKUP_PASSWORD" || { echo "::error::Add ZIP_BACKUP_PASSWORD in repository Actions secrets first."; exit 1; }
           KEY_PASS="$(openssl rand -hex 24)"
           echo "::add-mask::$KEY_PASS"
           mkdir -p output output_contents
