@@ -109,11 +109,28 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) {
-            webView.goBack();
-        } else {
+        if (webView == null) {
             super.onBackPressed();
+            return;
         }
+        // The website is a single-page app. When its private chat is open,
+        // Android Back should use the chat's own Dashboard button, not close the app.
+        webView.evaluateJavascript(
+            "(function(){if(document.body && document.body.classList.contains('chatmode')){" +
+            "var b=document.querySelector('.chead [data-tab=\\\"hub\\\"]');" +
+            "if(b){b.click();return 'chat';}" +
+            "var h=document.querySelector('[data-tab=\\\"hub\\\"]');if(h){h.click();return 'chat';}" +
+            "}return 'other';})()",
+            value -> {
+                if (!"'chat'".equals(value)) {
+                    if (webView != null && webView.canGoBack()) {
+                        webView.goBack();
+                    } else {
+                        super.onBackPressed();
+                    }
+                }
+            }
+        );
     }
 
     @Override
