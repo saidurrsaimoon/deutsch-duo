@@ -7,6 +7,13 @@
         android:label="Our Life"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false">
+        <service
+            android:name=".OurLifeMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
         <activity
             android:name=".NativeHomeActivity"
             android:exported="true">
