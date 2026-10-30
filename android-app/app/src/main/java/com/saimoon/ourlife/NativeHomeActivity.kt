@@ -391,8 +391,7 @@ private fun pageTitle(page: String) = when (page) {
 @Composable
 private fun CoupleHero(card: Color, fg: Color, muted: Color, gradient: Brush) {
     Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = card)) {
-        Box(Modifier.fillMaxWidth().background(gradient).padding(1.dp)) {
-            Column(
+        Column(
                 Modifier.fillMaxWidth().background(card, RoundedCornerShape(27.dp)).padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -408,7 +407,6 @@ private fun CoupleHero(card: Color, fg: Color, muted: Color, gradient: Brush) {
                     Text("OUR LITTLE LIFE", color = Rose, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp))
                 }
             }
-        }
     }
 }
 
