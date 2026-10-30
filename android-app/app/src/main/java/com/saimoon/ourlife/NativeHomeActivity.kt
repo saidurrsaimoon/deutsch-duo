@@ -792,7 +792,7 @@ private fun sendPartnerPush(
             val idToken = result.token ?: return@addOnSuccessListener
             Thread {
                 try {
-                    val connection = URL("https://our-life-push-api.saidur-r-saimoon.workers.dev/").openConnection() as HttpURLConnection
+                    val connection = URL("https://our-life-push-api.saidurrsaimoon.workers.dev/").openConnection() as HttpURLConnection
                     connection.requestMethod = "POST"
                     connection.connectTimeout = 10000
                     connection.readTimeout = 15000
