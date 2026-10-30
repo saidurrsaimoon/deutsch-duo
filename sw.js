@@ -1,8 +1,96 @@
-const C="duo-v15";
-self.addEventListener("install",e=>{self.skipWaiting()});
-self.addEventListener("activate",e=>e.waitUntil(clients.claim()));
-self.addEventListener("fetch",e=>{const u=new URL(e.request.url);
- if(e.request.method!=="GET"||(u.origin!==location.origin&&!["www.gstatic.com","cdn.jsdelivr.net"].includes(u.hostname)))return;
- e.respondWith(fetch(e.request).then(r=>{if(r.ok){const c=r.clone();caches.open(C).then(x=>x.put(e.request,c))}return r}).catch(()=>caches.match(e.request)))});
-self.addEventListener("notificationclick",e=>{e.notification.close();e.waitUntil(clients.matchAll({type:"window"}).then(l=>l[0]?l[0].focus():clients.openWindow("./")))});
-self.addEventListener("push",e=>{let j={};try{j=e.data.json()}catch(x){}const d=j.data||j,n=j.notification||{},t=d.title||n.title||"Our Life",ic=/^(saimoon|nadiya)$/i.test(t)?t.toLowerCase()+".png":"icon-192.png";e.waitUntil(self.registration.showNotification(t,{body:d.body||n.body||"New message",icon:ic,badge:"badge-72.png",tag:"chat",renotify:true,vibrate:[80,40,80],timestamp:Date.now()}))});
+const CACHE_NAME = "our-life-shell-v16";
+const APP_SHELL = [
+  "./",
+  "./index.html",
+  "./manifest.json",
+  "./icon-192.png",
+  "./icon-512.png",
+  "./badge-72.png"
+];
+
+self.addEventListener("install", event => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(APP_SHELL);
+    await self.skipWaiting();
+  })());
+});
+
+self.addEventListener("activate", event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener("fetch", event => {
+  const request = event.request;
+  if (request.method !== "GET") return;
+
+  const url = new URL(request.url);
+  const sameOrigin = url.origin === self.location.origin;
+  const firebaseStatic = url.hostname === "www.gstatic.com" || url.hostname === "cdn.jsdelivr.net";
+
+  // Never cache Firebase data/auth endpoints or other third-party requests.
+  if (!sameOrigin && !firebaseStatic) return;
+
+  if (request.mode === "navigate") {
+    event.respondWith((async () => {
+      try {
+        const fresh = await fetch(request);
+        if (fresh.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          cache.put("./index.html", fresh.clone());
+        }
+        return fresh;
+      } catch {
+        return (await caches.match(request)) || (await caches.match("./index.html"));
+      }
+    })());
+    return;
+  }
+
+  event.respondWith((async () => {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    try {
+      const fresh = await fetch(request);
+      if (fresh.ok && (sameOrigin || firebaseStatic)) {
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(request, fresh.clone());
+      }
+      return fresh;
+    } catch {
+      return new Response("You are offline. Open Our Life again when a connection is available.", {
+        status: 503,
+        headers: { "Content-Type": "text/plain; charset=utf-8" }
+      });
+    }
+  })());
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  event.waitUntil(self.clients.matchAll({ type: "window" }).then(list =>
+    list.length ? list[0].focus() : self.clients.openWindow("./")
+  ));
+});
+
+self.addEventListener("push", event => {
+  let data = {};
+  try { data = event.data.json(); } catch {}
+  const payload = data.data || data;
+  const note = data.notification || {};
+  const title = payload.title || note.title || "Our Life";
+  const icon = /^(saimoon|nadiya)$/i.test(title) ? title.toLowerCase() + ".png" : "icon-192.png";
+  event.waitUntil(self.registration.showNotification(title, {
+    body: payload.body || note.body || "New message",
+    icon,
+    badge: "badge-72.png",
+    tag: "chat",
+    renotify: true,
+    vibrate: [80, 40, 80],
+    timestamp: Date.now()
+  }));
+});
