@@ -67,7 +67,12 @@ class NativeHomeActivity : ComponentActivity() {
 
 @Composable
 private fun OurLifeApp(auth: FirebaseAuth) {
-    val currentUser = auth.currentUser
+    var currentUser by remember { mutableStateOf(auth.currentUser) }
+    DisposableEffect(auth) {
+        val listener = FirebaseAuth.AuthStateListener { currentUser = it.currentUser }
+        auth.addAuthStateListener(listener)
+        onDispose { auth.removeAuthStateListener(listener) }
+    }
     if (currentUser == null) {
         LoginScreen(auth)
     } else {
