@@ -117,9 +117,9 @@ public class MainActivity extends Activity {
         // Android Back should use the chat's own Dashboard button, not close the app.
         webView.evaluateJavascript(
             "(function(){if(document.body && document.body.classList.contains('chatmode')){" +
-            "var b=document.querySelector('.chead [data-tab=\\\"hub\\\"]');" +
+            "var b=document.querySelector('.chead [data-tab=\"hub\"]');" +
             "if(b){b.click();return 'chat';}" +
-            "var h=document.querySelector('[data-tab=\\\"hub\\\"]');if(h){h.click();return 'chat';}" +
+            "var h=document.querySelector('[data-tab=\"hub\"]');if(h){h.click();return 'chat';}" +
             "}return 'other';})()",
             value -> {
                 if (!"'chat'".equals(value)) {
