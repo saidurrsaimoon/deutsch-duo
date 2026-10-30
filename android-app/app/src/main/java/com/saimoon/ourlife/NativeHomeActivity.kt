@@ -60,7 +60,8 @@ private val tabs = listOf(
     "Chat" to Icons.Default.Favorite,
     "Learn" to Icons.Default.MenuBook,
     "Together" to Icons.Default.Event,
-    "Profile" to Icons.Default.Person
+    "Profile" to Icons.Default.Person,
+    "Settings" to Icons.Default.Settings
 )
 
 class NativeHomeActivity : ComponentActivity() {
@@ -250,7 +251,7 @@ private fun AuthenticatedOurLifeApp(auth: FirebaseAuth) {
     }
     var selected by remember { mutableStateOf("Home") }
     var previousPage by remember { mutableStateOf("Home") }
-    BackHandler(enabled = selected == "Chat") { selected = previousPage }
+    BackHandler(enabled = selected == "Chat") { selected = "Home"; previousPage = "Home" }
     var theme by remember { mutableStateOf("Dark") }
     val dark = theme == "Dark"
     val bg = if (dark) Plum else Cream
@@ -298,7 +299,6 @@ private fun AuthenticatedOurLifeApp(auth: FirebaseAuth) {
                 if (selected != "Chat") item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("OUR LITTLE LIFE", color = Rose, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.2.sp)
                             Text(pageTitle(selected), color = fg, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, lineHeight = 31.sp)
                         }
                         Surface(shape = CircleShape, color = card, tonalElevation = 2.dp) {
@@ -319,7 +319,7 @@ private fun AuthenticatedOurLifeApp(auth: FirebaseAuth) {
                         item { NativeFeatureCard("Meet & memories", "Plan the next meet and save old moments", "Our shared timeline", "heart", card, fg, muted, gradient) { selected = "Together" } }
                     }
                     "Chat" -> {
-                        item { NativeChatPanel(auth, card, fg, muted) { selected = previousPage } }
+                        item { NativeChatPanel(auth, card, fg, muted) { selected = "Home"; previousPage = "Home" } }
                     }
                     "Learn" -> {
                         item { SectionHeading("Learn German together", "Deutsch Duo • A1 journey", fg, muted) }
@@ -332,6 +332,10 @@ private fun AuthenticatedOurLifeApp(auth: FirebaseAuth) {
                         item { NativeFeatureCard("Daily tasks", "Meals • Prayer • College • Bath • Custom tasks", "Visible to both accounts", "checklist", card, fg, muted, gradient) {} }
                         item { NativeFeatureCard("Meet schedule", "Date • Start/end time • Place", "Upcoming and past meetings", "calendar", card, fg, muted, gradient) {} }
                         item { NativeFeatureCard("Memories & letters", "Save moments that matter to both of you", "Our little timeline", "heart", card, fg, muted, gradient) {} }
+                    }
+                    "Settings" -> {
+                        item { SectionHeading("Settings", "App preferences & permissions", fg, muted) }
+                        item { NotificationSettingsCard(card, fg, muted) }
                     }
                     else -> {
                         item { CoupleHero(card, fg, muted, gradient) }
@@ -349,9 +353,36 @@ private fun AuthenticatedOurLifeApp(auth: FirebaseAuth) {
     }
 }
 
+@Composable
+private fun NotificationSettingsCard(card: Color, fg: Color, muted: Color) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var enabled by remember { mutableStateOf(androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) }
+    Card(modifier = Modifier.fillMaxWidth().clickable {
+        val intent = android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+            putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+        }
+        context.startActivity(intent)
+    }, shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = card)) {
+        Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Notifications, contentDescription = null, tint = Rose, modifier = Modifier.size(28.dp))
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Notifications", color = fg, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(if (enabled) "Phone notifications are enabled" else "Tap to enable notifications in phone settings", color = muted, fontSize = 12.sp)
+                Text("Open notification settings", color = Rose, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
+            Icon(Icons.Default.ChevronRight, contentDescription = "Open", tint = muted)
+        }
+    }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        enabled = androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
+    }
+}
+
 private fun pageTitle(page: String) = when (page) {
     "Home" -> "A little world for two ♡"
     "Chat" -> "Only you & me"
+    "Settings" -> "Make it yours ♡"
     "Learn" -> "Grow together"
     "Together" -> "Our little moments"
     else -> "Our two profiles"
