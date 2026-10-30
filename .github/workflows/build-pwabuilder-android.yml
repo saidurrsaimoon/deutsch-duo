@@ -68,7 +68,7 @@ jobs:
                 --signingKeyPath=android.keystore \
                 --signingKeyAlias=ourlife
 
-              FP="$(keytool -list -v -keystore android.keystore -alias ourlife -storepass "$KEY_PASS" | awk -F": " "/SHA256:/{print \\$2; exit}")"
+              FP="$(keytool -list -v -keystore android.keystore -alias ourlife -storepass "$KEY_PASS" | awk -F": " "/SHA256:/{print \$2; exit}")"
               test -n "$FP"
 
               cat > /workspace/output_contents/assetlinks.json <<EOF
