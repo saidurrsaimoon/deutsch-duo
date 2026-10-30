@@ -50,8 +50,8 @@ jobs:
               export BUBBLEWRAP_KEYSTORE_PASSWORD="$KEY_PASS"
               export BUBBLEWRAP_KEY_PASSWORD="$KEY_PASS"
               bubblewrap build \
-                --manifest=/workspace/android-twa \
-                --signingKeyPath=/workspace/android-twa/android.keystore \
+                --manifest=twa-manifest.json \
+                --signingKeyPath=android.keystore \
                 --signingKeyAlias=ourlife
 
               FP="$(keytool -list -v -keystore android.keystore -alias ourlife -storepass "$KEY_PASS" | awk -F": " "/SHA256:/{print \$2; exit}")"
