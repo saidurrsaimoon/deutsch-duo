@@ -619,6 +619,7 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
                             error = task.exception?.localizedMessage ?: "Message পাঠানো যায়নি"
                         } else {
                             editingMessage = null
+                            if (editing == null) sendPartnerPush(auth, db, partnerUid, myName, body)
                             db.collection("users").document(me.uid).set(mapOf("typ" to 0L),
                                 com.google.firebase.firestore.SetOptions.merge())
                         }
