@@ -4,6 +4,9 @@ import android.os.Bundle
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
@@ -76,7 +79,7 @@ private fun OurLifeApp(auth: FirebaseAuth) {
     if (currentUser == null) {
         LoginScreen(auth)
     } else {
-        AuthenticatedOurLifeApp()
+        AuthenticatedOurLifeApp(auth)
     }
 }
 
@@ -155,7 +158,7 @@ private fun LoginScreen(auth: FirebaseAuth) {
 }
 
 @Composable
-private fun AuthenticatedOurLifeApp() {
+private fun AuthenticatedOurLifeApp(auth: FirebaseAuth) {
     var selected by remember { mutableStateOf("Home") }
     var theme by remember { mutableStateOf("Dark") }
     val dark = theme == "Dark"
@@ -225,8 +228,7 @@ private fun AuthenticatedOurLifeApp() {
                         item { NativeFeatureCard("Meet & memories", "Plan the next meet and save old moments", "Our shared timeline", "heart", card, fg, muted, gradient) { selected = "Together" } }
                     }
                     "Chat" -> {
-                        item { SectionHeading("Just us, always. ♡", "Private conversation space", fg, muted) }
-                        item { EmptyNativePanel("💌", "Our private chat", "এখানে native chat screen তৈরি হবে—message history, reply, delete ও reactions সহ।", card, fg, muted) }
+                        item { NativeChatPanel(auth, card, fg, muted) }
                     }
                     "Learn" -> {
                         item { SectionHeading("Learn German together", "Deutsch Duo • A1 journey", fg, muted) }
@@ -368,6 +370,102 @@ private fun ProfileTile(name: String, image: String, card: Color, fg: Color, mut
             Column {
                 Text(name, color = fg, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text(image, color = muted, fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+
+private data class NativeChatMessage(val id: String, val uid: String, val name: String, val text: String, val time: Long)
+
+@Composable
+private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: Color) {
+    val db = remember { FirebaseFirestore.getInstance() }
+    val me = auth.currentUser
+    val myName = when (me?.uid) {
+        "R0xCX48rkDa9VyyK7tDkyyH5qIk1" -> "Saimoon"
+        "lGnuAexcJzaJLMsIjYKeR4bzyXJ3" -> "Nadiya"
+        else -> me?.email?.substringBefore("@") ?: "You"
+    }
+    var messages by remember { mutableStateOf<List<NativeChatMessage>>(emptyList()) }
+    var draft by remember { mutableStateOf("") }
+    var sending by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    DisposableEffect(me?.uid) {
+        var registration: ListenerRegistration? = null
+        if (me != null) {
+            registration = db.collection("chat").orderBy("t", Query.Direction.DESCENDING).limit(100)
+                .addSnapshotListener { snapshot, exception ->
+                    if (exception != null) error = exception.localizedMessage ?: "Chat load হয়নি"
+                    else if (snapshot != null) {
+                        messages = snapshot.documents.mapNotNull { doc ->
+                            val uid = doc.getString("uid") ?: return@mapNotNull null
+                            NativeChatMessage(doc.id, uid, doc.getString("name") ?: "Unknown",
+                                doc.getString("text") ?: "", doc.getLong("t") ?: 0L)
+                        }
+                        error = null
+                    }
+                }
+        }
+        onDispose { registration?.remove() }
+    }
+
+    Column(Modifier.fillMaxWidth().heightIn(min = 460.dp, max = 680.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column {
+            Text("Just us, always. ♡", color = fg, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text("Private conversation • Saimoon & Nadiya", color = muted, fontSize = 11.sp)
+        }
+        Card(Modifier.weight(1f, fill = false).fillMaxWidth(), shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = card)) {
+            if (messages.isEmpty()) {
+                Box(Modifier.fillMaxWidth().padding(28.dp), contentAlignment = Alignment.Center) {
+                    Text("Say hi 👋", color = muted)
+                }
+            } else {
+                LazyColumn(Modifier.fillMaxWidth().heightIn(min = 300.dp, max = 500.dp).padding(12.dp),
+                    reverseLayout = true, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(messages, key = { it.id }) { message ->
+                        val mine = message.uid == me?.uid
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
+                            Column(Modifier.widthIn(max = 290.dp).clip(RoundedCornerShape(18.dp))
+                                .background(if (mine) DeepRose else card.copy(alpha = .88f))
+                                .padding(horizontal = 13.dp, vertical = 9.dp)) {
+                                if (!mine) Text(message.name, color = Rose, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text(message.text, color = if (mine) Color.White else fg, fontSize = 14.sp)
+                                Text(if (message.time > 0) java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(java.util.Date(message.time)) else "",
+                                    color = if (mine) Color.White.copy(alpha = .72f) else muted,
+                                    fontSize = 9.sp, modifier = Modifier.align(Alignment.End))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (error != null) Text(error!!, color = Color(0xFFFF8298), fontSize = 11.sp)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(value = draft, onValueChange = { draft = it }, modifier = Modifier.weight(1f),
+                placeholder = { Text("Write a message…") }, shape = RoundedCornerShape(24.dp), maxLines = 4)
+            Button(onClick = {
+                val body = draft.trim()
+                if (body.isNotEmpty() && me != null && !sending) {
+                    sending = true
+                    draft = ""
+                    db.collection("chat").add(mapOf("uid" to me.uid, "name" to myName,
+                        "text" to body, "t" to System.currentTimeMillis(), "re" to null))
+                        .addOnCompleteListener { task ->
+                            sending = false
+                            if (!task.isSuccessful) {
+                                draft = body
+                                error = task.exception?.localizedMessage ?: "Message পাঠানো যায়নি"
+                            }
+                        }
+                }
+            }, enabled = draft.isNotBlank() && !sending, modifier = Modifier.size(52.dp),
+                shape = CircleShape, contentPadding = PaddingValues(0.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = DeepRose)) {
+                Icon(Icons.Default.Send, contentDescription = "Send", tint = Color.White)
             }
         }
     }
