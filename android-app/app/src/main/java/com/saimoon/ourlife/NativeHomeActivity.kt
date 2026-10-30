@@ -176,9 +176,9 @@ private fun AuthenticatedOurLifeApp(auth: FirebaseAuth) {
     LaunchedEffect(userForPush?.uid) {
         if (userForPush != null) {
             FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
-                val tokenId = (userForPush.uid + "_" + token.hashCode().toUInt().toString()).replace("/", "_")
-                FirebaseFirestore.getInstance().collection("pushTokens").document(tokenId).set(
-                    mapOf("uid" to userForPush.uid, "token" to token, "updatedAt" to System.currentTimeMillis())
+                FirebaseFirestore.getInstance().collection("users").document(userForPush.uid).set(
+                    mapOf("fcms" to FieldValue.arrayUnion(token)),
+                    com.google.firebase.firestore.SetOptions.merge()
                 )
             }
         }
