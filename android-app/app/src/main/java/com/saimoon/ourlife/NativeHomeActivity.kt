@@ -1,6 +1,9 @@
 package com.saimoon.ourlife
 
 import android.os.Bundle
+import com.google.firebase.FirebaseApp
+import com.google.firebase.FirebaseOptions
+import com.google.firebase.auth.FirebaseAuth
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
@@ -49,12 +52,105 @@ class NativeHomeActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = android.graphics.Color.rgb(27, 15, 31)
         window.navigationBarColor = android.graphics.Color.rgb(27, 15, 31)
-        setContent { OurLifeApp() }
+        if (FirebaseApp.getApps(this).isEmpty()) {
+            val options = FirebaseOptions.Builder()
+                .setApiKey("AIzaSyBwsCFD4YzcoCD_vbEHm5jfxStzcdamLHU")
+                .setApplicationId("1:660528509397:web:491213214b8f86d2818d5c")
+                .setProjectId("deutsch-duo-8f489")
+                .setGcmSenderId("660528509397")
+                .build()
+            FirebaseApp.initializeApp(this, options)
+        }
+        setContent { OurLifeApp(FirebaseAuth.getInstance()) }
     }
 }
 
 @Composable
-private fun OurLifeApp() {
+private fun OurLifeApp(auth: FirebaseAuth) {
+    val currentUser = auth.currentUser
+    if (currentUser == null) {
+        LoginScreen(auth)
+    } else {
+        AuthenticatedOurLifeApp()
+    }
+}
+
+@Composable
+private fun LoginScreen(auth: FirebaseAuth) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val gradient = Brush.linearGradient(listOf(Rose, DeepRose))
+    Box(
+        Modifier.fillMaxSize().background(
+            Brush.radialGradient(listOf(Color(0xFF59304A), Plum))
+        ).padding(22.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = DarkCard)
+        ) {
+            Column(
+                Modifier.fillMaxWidth().padding(22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(13.dp)
+            ) {
+                Text("♡", color = Rose, fontSize = 48.sp)
+                Text("OUR LITTLE LIFE", color = Rose, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp)
+                Text("Welcome back", color = Color(0xFFFFEFF5), fontSize = 25.sp, fontWeight = FontWeight.ExtraBold)
+                Text("শুধু Saimoon & Nadiya-র জন্য", color = MutedDark, fontSize = 13.sp)
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it; error = null },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Email") }
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it; error = null },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Password") },
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
+                )
+                if (error != null) {
+                    Text(error!!, color = Color(0xFFFF8298), fontSize = 12.sp)
+                }
+                Button(
+                    onClick = {
+                        if (email.isBlank() || password.isBlank()) {
+                            error = "Email ও password দুটোই লিখো"
+                        } else {
+                            busy = true
+                            error = null
+                            auth.signInWithEmailAndPassword(email.trim(), password)
+                                .addOnCompleteListener { task ->
+                                    busy = false
+                                    if (!task.isSuccessful) {
+                                        error = task.exception?.localizedMessage ?: "Login হয়নি। আবার চেষ্টা করো।"
+                                    }
+                                }
+                        }
+                    },
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = DeepRose),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(if (busy) "Signing in…" else "Sign in", modifier = Modifier.padding(vertical = 5.dp), fontWeight = FontWeight.Bold)
+                }
+                Text("নতুন account তৈরি করা যাবে না", color = MutedDark, fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AuthenticatedOurLifeApp() {
     var selected by remember { mutableStateOf("Home") }
     var theme by remember { mutableStateOf("Dark") }
     val dark = theme == "Dark"
