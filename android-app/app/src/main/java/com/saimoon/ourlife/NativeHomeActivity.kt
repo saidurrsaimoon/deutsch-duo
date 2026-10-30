@@ -31,6 +31,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -402,6 +404,8 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
     var error by remember { mutableStateOf<String?>(null) }
     var replyTo by remember { mutableStateOf<NativeChatMessage?>(null) }
     var actionMessage by remember { mutableStateOf<NativeChatMessage?>(null) }
+    var editingMessage by remember { mutableStateOf<NativeChatMessage?>(null) }
+    val clipboard = LocalClipboardManager.current
     var lastTypingWrite by remember { mutableLongStateOf(0L) }
 
     DisposableEffect(me?.uid) {
@@ -566,20 +570,26 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
                 if (body.isNotEmpty() && me != null && !sending) {
                     sending = true
                     draft = ""
+                    val editing = editingMessage
                     val reply = replyTo?.let { mapOf("id" to it.id, "name" to it.name, "text" to it.text.take(80)) }
                     replyTo = null
-                    db.collection("chat").add(mapOf("uid" to me.uid, "name" to myName,
-                        "text" to body, "t" to System.currentTimeMillis(), "re" to reply))
-                        .addOnCompleteListener { task ->
-                            sending = false
-                            if (!task.isSuccessful) {
-                                draft = body
-                                error = task.exception?.localizedMessage ?: "Message পাঠানো যায়নি"
-                            } else {
-                                db.collection("users").document(me.uid).set(mapOf("typ" to 0L),
-                                    com.google.firebase.firestore.SetOptions.merge())
-                            }
+                    val write = if (editing != null) {
+                        db.collection("chat").document(editing.id).update("text", body, "edAt", System.currentTimeMillis())
+                    } else {
+                        db.collection("chat").add(mapOf("uid" to me.uid, "name" to myName,
+                            "text" to body, "t" to System.currentTimeMillis(), "re" to reply))
+                    }
+                    write.addOnCompleteListener { task ->
+                        sending = false
+                        if (!task.isSuccessful) {
+                            draft = body
+                            error = task.exception?.localizedMessage ?: "Message পাঠানো যায়নি"
+                        } else {
+                            editingMessage = null
+                            db.collection("users").document(me.uid).set(mapOf("typ" to 0L),
+                                com.google.firebase.firestore.SetOptions.merge())
                         }
+                    }
                 }
             }, enabled = draft.isNotBlank() && !sending, modifier = Modifier.size(52.dp),
                 shape = CircleShape, contentPadding = PaddingValues(0.dp),
@@ -614,6 +624,15 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
             },
             dismissButton = {
                 Row {
+                    TextButton(onClick = {
+                        clipboard.setText(AnnotatedString(selectedMessage.text))
+                        actionMessage = null
+                    }) { Text("Copy") }
+                    if (mine) TextButton(onClick = {
+                        editingMessage = selectedMessage
+                        draft = selectedMessage.text
+                        actionMessage = null
+                    }) { Text("Edit") }
                     if (mine) TextButton(onClick = {
                         db.collection("chat").document(selectedMessage.id).delete()
                         actionMessage = null
