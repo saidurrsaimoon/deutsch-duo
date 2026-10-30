@@ -679,3 +679,44 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
         )
     }
 }
+
+
+private fun sendPartnerPush(
+    auth: FirebaseAuth,
+    db: FirebaseFirestore,
+    partnerUid: String,
+    senderName: String,
+    messageText: String
+) {
+    db.collection("users").document(partnerUid).get().addOnSuccessListener { partner ->
+        val tokens = (partner.get("fcms") as? List<*>)?.filterIsInstance<String>()?.takeLast(3) ?: emptyList()
+        val isOnline = partner.getBoolean("vis") == true &&
+            System.currentTimeMillis() - (partner.getLong("seen") ?: 0L) < 70000L
+        if (tokens.isEmpty() || isOnline) return@addOnSuccessListener
+        auth.currentUser?.getIdToken(false)?.addOnSuccessListener { result ->
+            val idToken = result.token ?: return@addOnSuccessListener
+            Thread {
+                try {
+                    val connection = URL("https://our-life-push-api.saidur-r-saimoon.workers.dev/").openConnection() as HttpURLConnection
+                    connection.requestMethod = "POST"
+                    connection.connectTimeout = 10000
+                    connection.readTimeout = 15000
+                    connection.doOutput = true
+                    connection.setRequestProperty("Content-Type", "application/json")
+                    connection.setRequestProperty("Authorization", "Bearer $idToken")
+                    val payload = org.json.JSONObject()
+                        .put("tokens", org.json.JSONArray(tokens))
+                        .put("title", senderName)
+                        .put("body", messageText.take(140))
+                        .toString()
+                    connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
+                    val status = connection.responseCode
+                    android.util.Log.d("OurLifePush", "Push endpoint HTTP $status")
+                    connection.disconnect()
+                } catch (e: Exception) {
+                    android.util.Log.e("OurLifePush", "Push request failed", e)
+                }
+            }.start()
+        }
+    }
+}
