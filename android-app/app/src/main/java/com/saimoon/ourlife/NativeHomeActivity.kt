@@ -55,7 +55,7 @@ class NativeHomeActivity : ComponentActivity() {
         if (FirebaseApp.getApps(this).isEmpty()) {
             val options = FirebaseOptions.Builder()
                 .setApiKey("AIzaSyBwsCFD4YzcoCD_vbEHm5jfxStzcdamLHU")
-                .setApplicationId("1:660528509397:web:491213214b8f86d2818d5c")
+                .setApplicationId("1:660528509397:android:03d9d4897ccd5f88818d5c")
                 .setProjectId("deutsch-duo-8f489")
                 .setGcmSenderId("660528509397")
                 .build()
