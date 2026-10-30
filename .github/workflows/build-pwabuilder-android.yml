@@ -45,7 +45,7 @@ jobs:
                 -dname "CN=Our Life, OU=Mobile App, O=Personal, L=Barishal, ST=Barishal, C=BD"
 
               bubblewrap doctor || true
-              bubblewrap update --manifest=/workspace/android-twa
+              bubblewrap update --skipVersionUpgrade --manifest=twa-manifest.json
 
               export BUBBLEWRAP_KEYSTORE_PASSWORD="$KEY_PASS"
               export BUBBLEWRAP_KEY_PASSWORD="$KEY_PASS"
