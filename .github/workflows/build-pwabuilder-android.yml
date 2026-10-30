@@ -2,10 +2,11 @@ name: Build Our Life with PWABuilder (Bubblewrap TWA)
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'android-twa/twa-manifest.json'
-      - '.github/workflows/build-pwabuilder-android.yml'
+    inputs:
+      backup_password:
+        description: "Create a new strong password to encrypt the ZIP backup (remember it)"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -17,13 +18,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build signed Trusted Web Activity with Bubblewrap
+      - name: Install ZIP encryption tool
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full
+
+      - name: Build signed TWA and encrypted ZIP
         shell: bash
+        env:
+          BACKUP_PASSWORD: ${{ inputs.backup_password }}
         run: |
           set -euo pipefail
+          test -n "$BACKUP_PASSWORD"
+          echo "::add-mask::$BACKUP_PASSWORD"
           KEY_PASS="$(openssl rand -hex 24)"
           echo "::add-mask::$KEY_PASS"
-          mkdir -p output
+          mkdir -p output output_contents
 
           docker pull ghcr.io/googlechromelabs/bubblewrap:1.25.0
 
@@ -36,6 +46,7 @@ jobs:
             -c '
               set -eu
               cd /workspace/android-twa
+              mkdir -p /workspace/output_contents
 
               keytool -genkeypair -v \
                 -keystore android.keystore \
@@ -57,10 +68,10 @@ jobs:
                 --signingKeyPath=android.keystore \
                 --signingKeyAlias=ourlife
 
-              FP="$(keytool -list -v -keystore android.keystore -alias ourlife -storepass "$KEY_PASS" | awk -F": " "/SHA256:/{print \$2; exit}")"
+              FP="$(keytool -list -v -keystore android.keystore -alias ourlife -storepass "$KEY_PASS" | awk -F": " "/SHA256:/{print \\$2; exit}")"
               test -n "$FP"
 
-              cat > assetlinks.json <<EOF
+              cat > /workspace/output_contents/assetlinks.json <<EOF
               [
                 {
                   "relation": ["delegate_permission/common.handle_all_urls"],
@@ -73,7 +84,7 @@ jobs:
               ]
               EOF
 
-              cat > signing-key-info.txt <<EOF
+              cat > /workspace/output_contents/signing-key-info.txt <<EOF
               App: Our Life
               Package ID: com.saimoon.ourlife
               Keystore file: android.keystore
@@ -81,21 +92,30 @@ jobs:
               Keystore password: $KEY_PASS
               Key password: $KEY_PASS
 
-              Keep this file and android.keystore private and backed up.
+              Keep android.keystore and this file private.
               Use the same keystore and passwords for every future app update.
               EOF
 
-              cp app-release-signed.apk /workspace/output/Our-Life-PWABuilder.apk
-              cp app-release-bundle.aab /workspace/output/Our-Life-PWABuilder.aab
-              cp android.keystore /workspace/output/android.keystore
-              cp signing-key-info.txt /workspace/output/signing-key-info.txt
-              cp assetlinks.json /workspace/output/assetlinks.json
+              cp app-release-signed.apk /workspace/output_contents/Our-Life-PWABuilder.apk
+              cp app-release-bundle.aab /workspace/output_contents/Our-Life-PWABuilder.aab
+              cp android.keystore /workspace/output_contents/android.keystore
             '
 
-      - name: Upload signed app and private signing backup
+          test -s output_contents/Our-Life-PWABuilder.apk
+          test -s output_contents/android.keystore
+
+          7z a -tzip -mem=AES256 -p"$BACKUP_PASSWORD" \
+            output/Our-Life-PWABuilder-Signed.zip \
+            ./output_contents/Our-Life-PWABuilder.apk \
+            ./output_contents/Our-Life-PWABuilder.aab \
+            ./output_contents/android.keystore \
+            ./output_contents/signing-key-info.txt \
+            ./output_contents/assetlinks.json
+
+      - name: Upload password-protected APK and signing-key ZIP
         uses: actions/upload-artifact@v4
         with:
           name: Our-Life-PWABuilder-Signed
-          path: output/
+          path: output/Our-Life-PWABuilder-Signed.zip
           if-no-files-found: error
           retention-days: 1
