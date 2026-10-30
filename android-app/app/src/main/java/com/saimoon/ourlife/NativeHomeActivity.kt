@@ -14,6 +14,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -376,7 +379,11 @@ private fun ProfileTile(name: String, image: String, card: Color, fg: Color, mut
 }
 
 
-private data class NativeChatMessage(val id: String, val uid: String, val name: String, val text: String, val time: Long)
+private data class NativeChatMessage(
+    val id: String, val uid: String, val name: String, val text: String, val time: Long,
+    val replyName: String?, val replyText: String?, val deliveredAt: Long?, val seenAt: Long?,
+    val reactions: Map<String, String>, val edited: Boolean
+)
 
 @Composable
 private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: Color) {
@@ -387,56 +394,143 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
         "lGnuAexcJzaJLMsIjYKeR4bzyXJ3" -> "Nadiya"
         else -> me?.email?.substringBefore("@") ?: "You"
     }
+    val partnerUid = if (me?.uid == "R0xCX48rkDa9VyyK7tDkyyH5qIk1") "lGnuAexcJzaJLMsIjYKeR4bzyXJ3" else "R0xCX48rkDa9VyyK7tDkyyH5qIk1"
+    var partnerStatus by remember { mutableStateOf<Map<String, Any>?>(null) }
     var messages by remember { mutableStateOf<List<NativeChatMessage>>(emptyList()) }
     var draft by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var replyTo by remember { mutableStateOf<NativeChatMessage?>(null) }
+    var actionMessage by remember { mutableStateOf<NativeChatMessage?>(null) }
+    var lastTypingWrite by remember { mutableLongStateOf(0L) }
 
     DisposableEffect(me?.uid) {
-        var registration: ListenerRegistration? = null
+        var chatReg: ListenerRegistration? = null
+        var userReg: ListenerRegistration? = null
         if (me != null) {
-            registration = db.collection("chat").orderBy("t", Query.Direction.DESCENDING).limit(100)
+            db.collection("users").document(me.uid).set(
+                mapOf("vis" to true, "inChat" to true, "seen" to System.currentTimeMillis()),
+                com.google.firebase.firestore.SetOptions.merge()
+            )
+            userReg = db.collection("users").document(partnerUid).addSnapshotListener { snap, _ ->
+                partnerStatus = snap?.data
+            }
+            chatReg = db.collection("chat").orderBy("t", Query.Direction.DESCENDING).limit(100)
                 .addSnapshotListener { snapshot, exception ->
-                    if (exception != null) error = exception.localizedMessage ?: "Chat load হয়নি"
-                    else if (snapshot != null) {
+                    if (exception != null) {
+                        error = exception.localizedMessage ?: "Chat load হয়নি"
+                    } else if (snapshot != null) {
+                        val now = System.currentTimeMillis()
+                        snapshot.documents.forEach { doc ->
+                            if (doc.getString("uid") != me.uid) {
+                                if (doc.getLong("dAt") == null) doc.reference.update("dAt", now)
+                                if (doc.getLong("sAt") == null) doc.reference.update("sAt", now)
+                            }
+                        }
                         messages = snapshot.documents.mapNotNull { doc ->
                             val uid = doc.getString("uid") ?: return@mapNotNull null
-                            NativeChatMessage(doc.id, uid, doc.getString("name") ?: "Unknown",
-                                doc.getString("text") ?: "", doc.getLong("t") ?: 0L)
+                            val reply = doc.get("re") as? Map<*, *>
+                            val rx = doc.get("rx") as? Map<*, *> ?: emptyMap<Any, Any>()
+                            NativeChatMessage(
+                                doc.id, uid, doc.getString("name") ?: "Unknown",
+                                doc.getString("text") ?: "", doc.getLong("t") ?: 0L,
+                                reply?.get("name") as? String, reply?.get("text") as? String,
+                                doc.getLong("dAt"), doc.getLong("sAt"),
+                                rx.entries.mapNotNull { e -> (e.key as? String)?.let { k -> (e.value as? String)?.let { k to it } } }.toMap(),
+                                doc.getLong("edAt") != null
+                            )
                         }
                         error = null
                     }
                 }
         }
-        onDispose { registration?.remove() }
+        onDispose {
+            chatReg?.remove()
+            userReg?.remove()
+            if (me != null) db.collection("users").document(me.uid).set(
+                mapOf("vis" to false, "inChat" to false, "seen" to System.currentTimeMillis(), "typ" to 0L),
+                com.google.firebase.firestore.SetOptions.merge()
+            )
+        }
+    }
+
+    val online = partnerStatus?.get("vis") == true &&
+        System.currentTimeMillis() - ((partnerStatus?.get("seen") as? Number)?.toLong() ?: 0L) < 70000
+    val typing = online && System.currentTimeMillis() - ((partnerStatus?.get("typ") as? Number)?.toLong() ?: 0L) < 4500
+    val status = when {
+        typing -> "typing…"
+        online && partnerStatus?.get("inChat") == true -> "online · in chat"
+        online -> "online"
+        (partnerStatus?.get("seen") as? Number)?.toLong() != null -> "last seen " +
+            java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(
+                java.util.Date((partnerStatus?.get("seen") as Number).toLong()))
+        else -> "offline"
     }
 
     Column(Modifier.fillMaxWidth().heightIn(min = 460.dp, max = 680.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Column {
             Text("Just us, always. ♡", color = fg, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Text("Private conversation • Saimoon & Nadiya", color = muted, fontSize = 11.sp)
+            Text("Saimoon & Nadiya  ·  $status", color = if (online) Rose else muted, fontSize = 11.sp)
         }
-        Card(Modifier.weight(1f, fill = false).fillMaxWidth(), shape = RoundedCornerShape(22.dp),
+        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
             colors = CardDefaults.cardColors(containerColor = card)) {
             if (messages.isEmpty()) {
-                Box(Modifier.fillMaxWidth().padding(28.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxWidth().height(330.dp), contentAlignment = Alignment.Center) {
                     Text("Say hi 👋", color = muted)
                 }
             } else {
                 LazyColumn(Modifier.fillMaxWidth().heightIn(min = 300.dp, max = 500.dp).padding(12.dp),
-                    reverseLayout = true, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    reverseLayout = true, verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     items(messages, key = { it.id }) { message ->
                         val mine = message.uid == me?.uid
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
-                            Column(Modifier.widthIn(max = 290.dp).clip(RoundedCornerShape(18.dp))
-                                .background(if (mine) DeepRose else card.copy(alpha = .88f))
-                                .padding(horizontal = 13.dp, vertical = 9.dp)) {
-                                if (!mine) Text(message.name, color = Rose, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                Text(message.text, color = if (mine) Color.White else fg, fontSize = 14.sp)
-                                Text(if (message.time > 0) java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(java.util.Date(message.time)) else "",
-                                    color = if (mine) Color.White.copy(alpha = .72f) else muted,
-                                    fontSize = 9.sp, modifier = Modifier.align(Alignment.End))
+                        Column(Modifier.fillMaxWidth(), horizontalAlignment = if (mine) Alignment.End else Alignment.Start) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
+                                Column(
+                                    Modifier.widthIn(max = 292.dp)
+                                        .pointerInput(message.id) {
+                                            var drag = 0f
+                                            detectHorizontalDragGestures(
+                                                onHorizontalDrag = { _, amount -> drag += amount },
+                                                onDragEnd = { if (drag > 55f) replyTo = message; drag = 0f },
+                                                onHorizontalDragCancel = { drag = 0f }
+                                            )
+                                        }
+                                        .pointerInput(message.id) {
+                                            detectTapGestures(onLongPress = { actionMessage = message })
+                                        }
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(if (mine) DeepRose else card.copy(alpha = .88f))
+                                        .padding(horizontal = 13.dp, vertical = 9.dp)
+                                ) {
+                                    if (message.replyText != null) {
+                                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp))
+                                            .background(Color.Black.copy(alpha = .13f)).padding(8.dp)) {
+                                            Text(message.replyName ?: "Reply", color = Rose, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            Text(message.replyText, color = if (mine) Color.White.copy(alpha = .85f) else muted,
+                                                fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                        }
+                                        Spacer(Modifier.height(6.dp))
+                                    }
+                                    if (!mine) Text(message.name, color = Rose, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text(message.text, color = if (mine) Color.White else fg, fontSize = 14.sp)
+                                    Row(Modifier.align(Alignment.End), verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        if (message.edited) Text("edited", color = Color.White.copy(alpha = .6f), fontSize = 8.sp)
+                                        Text(if (message.time > 0) java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
+                                            .format(java.util.Date(message.time)) else "",
+                                            color = if (mine) Color.White.copy(alpha = .72f) else muted, fontSize = 9.sp)
+                                        if (mine) {
+                                            val tickColor = if (message.seenAt != null) Color(0xFF8DE5FF) else Color.White.copy(alpha = .75f)
+                                            Text(if (message.seenAt != null) "✓✓" else if (message.deliveredAt != null) "✓✓" else "✓",
+                                                color = tickColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                            if (message.reactions.isNotEmpty()) {
+                                Text(message.reactions.values.joinToString("  "), color = Rose, fontSize = 13.sp,
+                                    modifier = Modifier.padding(horizontal = 8.dp))
                             }
                         }
                     }
@@ -444,21 +538,46 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
             }
         }
         if (error != null) Text(error!!, color = Color(0xFFFF8298), fontSize = 11.sp)
+        if (replyTo != null) {
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(card).padding(10.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Replying to ${replyTo!!.name}", color = Rose, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(replyTo!!.text, color = muted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                IconButton(onClick = { replyTo = null }) { Icon(Icons.Default.Close, "Cancel reply", tint = muted) }
+            }
+        }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = draft, onValueChange = { draft = it }, modifier = Modifier.weight(1f),
-                placeholder = { Text("Write a message…") }, shape = RoundedCornerShape(24.dp), maxLines = 4)
+            OutlinedTextField(value = draft, onValueChange = {
+                draft = it
+                val now = System.currentTimeMillis()
+                if (me != null && now - lastTypingWrite > 2500) {
+                    lastTypingWrite = now
+                    db.collection("users").document(me.uid).set(
+                        mapOf("typ" to now, "vis" to true, "inChat" to true, "seen" to now),
+                        com.google.firebase.firestore.SetOptions.merge()
+                    )
+                }
+            }, modifier = Modifier.weight(1f), placeholder = { Text("Write a message…") },
+                shape = RoundedCornerShape(24.dp), maxLines = 4)
             Button(onClick = {
                 val body = draft.trim()
                 if (body.isNotEmpty() && me != null && !sending) {
                     sending = true
                     draft = ""
+                    val reply = replyTo?.let { mapOf("id" to it.id, "name" to it.name, "text" to it.text.take(80)) }
+                    replyTo = null
                     db.collection("chat").add(mapOf("uid" to me.uid, "name" to myName,
-                        "text" to body, "t" to System.currentTimeMillis(), "re" to null))
+                        "text" to body, "t" to System.currentTimeMillis(), "re" to reply))
                         .addOnCompleteListener { task ->
                             sending = false
                             if (!task.isSuccessful) {
                                 draft = body
                                 error = task.exception?.localizedMessage ?: "Message পাঠানো যায়নি"
+                            } else {
+                                db.collection("users").document(me.uid).set(mapOf("typ" to 0L),
+                                    com.google.firebase.firestore.SetOptions.merge())
                             }
                         }
                 }
@@ -468,5 +587,43 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
                 Icon(Icons.Default.Send, contentDescription = "Send", tint = Color.White)
             }
         }
+    }
+
+    if (actionMessage != null) {
+        val selectedMessage = actionMessage!!
+        val mine = selectedMessage.uid == me?.uid
+        AlertDialog(
+            onDismissRequest = { actionMessage = null },
+            title = { Text(if (mine) "Your message" else selectedMessage.name) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(selectedMessage.text, color = fg)
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        listOf("❤️", "😂", "😮", "😢", "👍", "🙏").forEach { emoji ->
+                            TextButton(onClick = {
+                                db.collection("chat").document(selectedMessage.id)
+                                    .update("rx.${me?.uid}", emoji)
+                                actionMessage = null
+                            }) { Text(emoji, fontSize = 19.sp) }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { replyTo = selectedMessage; actionMessage = null }) { Text("Reply") }
+            },
+            dismissButton = {
+                Row {
+                    if (mine) TextButton(onClick = {
+                        db.collection("chat").document(selectedMessage.id).delete()
+                        actionMessage = null
+                    }) { Text("Delete", color = Color(0xFFE46A82)) }
+                    TextButton(onClick = { actionMessage = null }) { Text("Close") }
+                }
+            },
+            containerColor = card,
+            titleContentColor = fg,
+            textContentColor = muted
+        )
     }
 }
