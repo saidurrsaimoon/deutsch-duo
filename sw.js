@@ -1,7 +1,8 @@
-const CACHE_NAME = "our-life-shell-v16";
+const CACHE_NAME = "our-life-shell-v17";
 const APP_SHELL = [
   "./",
   "./index.html",
+  "./chat.html",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png",
@@ -37,16 +38,22 @@ self.addEventListener("fetch", event => {
 
   if (request.mode === "navigate") {
     event.respondWith((async () => {
-      try {
-        const fresh = await fetch(request);
+      const cached = await caches.match("./index.html");
+      const refresh = fetch(request).then(async fresh => {
         if (fresh.ok) {
           const cache = await caches.open(CACHE_NAME);
-          cache.put("./index.html", fresh.clone());
+          await cache.put("./index.html", fresh.clone());
         }
         return fresh;
-      } catch {
-        return (await caches.match(request)) || (await caches.match("./index.html"));
+      });
+      if (cached) {
+        event.waitUntil(refresh.catch(() => {}));
+        return cached;
       }
+      try { return await refresh; }
+      catch { return new Response("Please connect to the internet and open Our Life again.", {
+        status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" }
+      }); }
     })());
     return;
   }
