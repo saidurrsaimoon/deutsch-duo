@@ -17,7 +17,7 @@
             </intent-filter>
         </service>
         <activity
-            android:name=".NativeHomeActivity"
+            android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
