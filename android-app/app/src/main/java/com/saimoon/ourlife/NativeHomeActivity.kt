@@ -9,6 +9,7 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
@@ -165,6 +166,8 @@ private fun LoginScreen(auth: FirebaseAuth) {
 @Composable
 private fun AuthenticatedOurLifeApp(auth: FirebaseAuth) {
     var selected by remember { mutableStateOf("Home") }
+    var previousPage by remember { mutableStateOf("Home") }
+    BackHandler(enabled = selected == "Chat") { selected = previousPage }
     var theme by remember { mutableStateOf("Dark") }
     val dark = theme == "Dark"
     val bg = if (dark) Plum else Cream
@@ -180,7 +183,7 @@ private fun AuthenticatedOurLifeApp(auth: FirebaseAuth) {
         Scaffold(
             containerColor = bg,
             bottomBar = {
-                NavigationBar(
+                if (selected != "Chat") NavigationBar(
                     containerColor = card.copy(alpha = .97f),
                     contentColor = fg,
                     tonalElevation = 8.dp,
@@ -189,7 +192,7 @@ private fun AuthenticatedOurLifeApp(auth: FirebaseAuth) {
                     tabs.forEach { (label, icon) ->
                         NavigationBarItem(
                             selected = selected == label,
-                            onClick = { selected = label },
+                            onClick = { if (label == "Chat") previousPage = selected; selected = label },
                             icon = { Icon(icon, contentDescription = label, modifier = Modifier.size(22.dp)) },
                             label = { Text(label, fontSize = 10.sp, fontWeight = if (selected == label) FontWeight.Bold else FontWeight.Medium) },
                             colors = NavigationBarItemDefaults.colors(
@@ -209,7 +212,7 @@ private fun AuthenticatedOurLifeApp(auth: FirebaseAuth) {
                 contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                item {
+                if (selected != "Chat") item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("OUR LITTLE LIFE", color = Rose, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.2.sp)
@@ -229,7 +232,7 @@ private fun AuthenticatedOurLifeApp(auth: FirebaseAuth) {
                         item { ProgressStrip(card, fg, muted) }
                         item { NativeFeatureCard("Daily routine", "আজকের খাবার, নামাজ, college & self-care", "Shared daily checklist", "checklist", card, fg, muted, gradient) { selected = "Together" } }
                         item { NativeFeatureCard("Deutsch Duo", "German A1 • Vocabulary • Grammar", "Keep the original study routine unchanged", "book", card, fg, muted, gradient) { selected = "Learn" } }
-                        item { NativeFeatureCard("Our private chat", "A quiet little place for just us two", "Messages and replies", "chat", card, fg, muted, gradient) { selected = "Chat" } }
+                        item { NativeFeatureCard("Our private chat", "A quiet little place for just us two", "Messages and replies", "chat", card, fg, muted, gradient) { previousPage = selected; selected = "Chat" } }
                         item { NativeFeatureCard("Meet & memories", "Plan the next meet and save old moments", "Our shared timeline", "heart", card, fg, muted, gradient) { selected = "Together" } }
                     }
                     "Chat" -> {
@@ -471,14 +474,26 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
         else -> "offline"
     }
 
-    Column(Modifier.fillMaxWidth().heightIn(min = 460.dp, max = 680.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Column {
-            Text("Just us, always. ♡", color = fg, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Text("Saimoon & Nadiya  ·  $status", color = if (online) Rose else muted, fontSize = 11.sp)
+    val chatBg = if (card == DarkCard) Color(0xFF0B141A) else Color(0xFFECE5DD)
+    val outgoing = if (card == DarkCard) Color(0xFF005C4B) else Color(0xFFD9FDD3)
+    val incoming = if (card == DarkCard) Color(0xFF202C33) else Color.White
+    Column(Modifier.fillMaxWidth().heightIn(min = 520.dp, max = 820.dp).background(chatBg, RoundedCornerShape(18.dp)).padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (card == DarkCard) Color(0xFF075E54) else Color(0xFF128C7E)).padding(horizontal = 8.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.ArrowBack, "Back", tint = Color.White, modifier = Modifier.padding(9.dp))
+            Surface(shape = CircleShape, color = Color.White.copy(alpha = .18f), modifier = Modifier.size(38.dp)) {
+                Box(contentAlignment = Alignment.Center) { Text("♡", color = Color.White, fontSize = 22.sp) }
+            }
+            Spacer(Modifier.width(9.dp))
+            Column {
+                Text("Saimoon & Nadiya", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(status, color = Color.White.copy(alpha = .8f), fontSize = 11.sp)
+            }
         }
-        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = card)) {
+        Card(Modifier.fillMaxWidth().weight(1f, fill = false),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = chatBg)) {
             if (messages.isEmpty()) {
                 Box(Modifier.fillMaxWidth().height(330.dp), contentAlignment = Alignment.Center) {
                     Text("Say hi 👋", color = muted)
@@ -504,7 +519,7 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
                                             detectTapGestures(onLongPress = { actionMessage = message })
                                         }
                                         .clip(RoundedCornerShape(18.dp))
-                                        .background(if (mine) DeepRose else card.copy(alpha = .88f))
+                                        .background(if (mine) outgoing else incoming)
                                         .padding(horizontal = 13.dp, vertical = 9.dp)
                                 ) {
                                     if (message.replyText != null) {
@@ -517,7 +532,7 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
                                         Spacer(Modifier.height(6.dp))
                                     }
                                     if (!mine) Text(message.name, color = Rose, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    Text(message.text, color = if (mine) Color.White else fg, fontSize = 14.sp)
+                                    Text(message.text, color = if (mine || card == DarkCard) Color.White else Color(0xFF111B21), fontSize = 14.sp)
                                     Row(Modifier.align(Alignment.End), verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                         if (message.edited) Text("edited", color = Color.White.copy(alpha = .6f), fontSize = 8.sp)
@@ -525,7 +540,7 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
                                             .format(java.util.Date(message.time)) else "",
                                             color = if (mine) Color.White.copy(alpha = .72f) else muted, fontSize = 9.sp)
                                         if (mine) {
-                                            val tickColor = if (message.seenAt != null) Color(0xFF8DE5FF) else Color.White.copy(alpha = .75f)
+                                            val tickColor = if (message.seenAt != null) Color(0xFF53BDEB) else Color.White.copy(alpha = .75f)
                                             Text(if (message.seenAt != null) "✓✓" else if (message.deliveredAt != null) "✓✓" else "✓",
                                                 color = tickColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                         }
@@ -563,8 +578,9 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
                         com.google.firebase.firestore.SetOptions.merge()
                     )
                 }
-            }, modifier = Modifier.weight(1f), placeholder = { Text("Write a message…") },
-                shape = RoundedCornerShape(24.dp), maxLines = 4)
+            }, modifier = Modifier.weight(1f), placeholder = { Text("Message") },
+                shape = RoundedCornerShape(26.dp), maxLines = 4,
+                colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = incoming, unfocusedContainerColor = incoming, focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent, focusedTextColor = if (card == DarkCard) Color.White else Color(0xFF111B21), unfocusedTextColor = if (card == DarkCard) Color.White else Color(0xFF111B21)))
             Button(onClick = {
                 val body = draft.trim()
                 if (body.isNotEmpty() && me != null && !sending) {
@@ -593,7 +609,7 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
                 }
             }, enabled = draft.isNotBlank() && !sending, modifier = Modifier.size(52.dp),
                 shape = CircleShape, contentPadding = PaddingValues(0.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = DeepRose)) {
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF128C7E))) {
                 Icon(Icons.Default.Send, contentDescription = "Send", tint = Color.White)
             }
         }
