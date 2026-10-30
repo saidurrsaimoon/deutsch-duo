@@ -1,0 +1,41 @@
+{
+  "packageId": "com.saimoon.ourlife",
+  "host": "saidurrsaimoon.github.io",
+  "name": "Our Life",
+  "launcherName": "Our Life",
+  "display": "standalone",
+  "themeColor": "#0b1020",
+  "themeColorDark": "#0b1020",
+  "navigationColor": "#0b1020",
+  "navigationColorDark": "#0b1020",
+  "navigationDividerColor": "#0b1020",
+  "navigationDividerColorDark": "#0b1020",
+  "backgroundColor": "#0b1020",
+  "enableNotifications": false,
+  "enableSiteSettingsShortcut": true,
+  "startUrl": "/deutsch-duo/",
+  "iconUrl": "https://saidurrsaimoon.github.io/deutsch-duo/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "android.keystore",
+    "alias": "ourlife"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "appVersion": "1.0.0",
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://saidurrsaimoon.github.io/deutsch-duo/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "minSdkVersion": 24,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": []
+}
