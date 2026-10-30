@@ -44,7 +44,9 @@ jobs:
                 -storepass "$KEY_PASS" -keypass "$KEY_PASS" \
                 -dname "CN=Our Life, OU=Mobile App, O=Personal, L=Barishal, ST=Barishal, C=BD"
 
-              if command -v sdkmanager >/dev/null 2>&1; then yes | sdkmanager --licenses >/dev/null; fi
+              SDKMANAGER="$(find /root/.bubblewrap/android_sdk -type f -name sdkmanager -print -quit)"
+              test -n "$SDKMANAGER"
+              yes | "$SDKMANAGER" --licenses >/dev/null
               bubblewrap doctor || true
               bubblewrap update --skipVersionUpgrade --manifest=twa-manifest.json
 
