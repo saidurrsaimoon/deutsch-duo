@@ -1,0 +1,15 @@
+<div class="chat">
+  <div class="chead">
+    <button class="x" data-tab="hub" style="font-size:26px" aria-label="Back to dashboard">←</button>
+    {{PARTNER_AVATAR}}
+    <div><b>{{PARTNER_NAME}}</b><div class="st" id="pst"></div></div>
+  </div>
+  <div id="cl">{{CHAT_MESSAGES}}</div>
+  <div id="rb">{{REPLY_BAR}}</div>
+  <div class="cbar">
+    <input id="cm" placeholder="Message" autocomplete="off" enterkeyhint="send">
+    <button class="send" data-act="send" aria-label="Send">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="#fff" d="M3 20.5v-6.2l9-2.3-9-2.3V3.5l19 8.5z"/></svg>
+    </button>
+  </div>
+</div>
