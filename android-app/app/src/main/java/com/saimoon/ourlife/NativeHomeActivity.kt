@@ -1,6 +1,10 @@
 package com.saimoon.ourlife
 
 import android.os.Bundle
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.app.ActivityCompat
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.auth.FirebaseAuth
@@ -69,6 +73,9 @@ class NativeHomeActivity : ComponentActivity() {
                 .setGcmSenderId("660528509397")
                 .build()
             FirebaseApp.initializeApp(this, options)
+        }
+        if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 7001)
         }
         setContent { OurLifeApp(FirebaseAuth.getInstance()) }
     }
@@ -165,6 +172,17 @@ private fun LoginScreen(auth: FirebaseAuth) {
 
 @Composable
 private fun AuthenticatedOurLifeApp(auth: FirebaseAuth) {
+    val userForPush = auth.currentUser
+    LaunchedEffect(userForPush?.uid) {
+        if (userForPush != null) {
+            FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+                val tokenId = (userForPush.uid + "_" + token.hashCode().toUInt().toString()).replace("/", "_")
+                FirebaseFirestore.getInstance().collection("pushTokens").document(tokenId).set(
+                    mapOf("uid" to userForPush.uid, "token" to token, "updatedAt" to System.currentTimeMillis())
+                )
+            }
+        }
+    }
     var selected by remember { mutableStateOf("Home") }
     var previousPage by remember { mutableStateOf("Home") }
     BackHandler(enabled = selected == "Chat") { selected = previousPage }
@@ -429,9 +447,8 @@ private fun NativeChatPanel(auth: FirebaseAuth, card: Color, fg: Color, muted: C
                     } else if (snapshot != null) {
                         val now = System.currentTimeMillis()
                         snapshot.documents.forEach { doc ->
-                            if (doc.getString("uid") != me.uid) {
-                                if (doc.getLong("dAt") == null) doc.reference.update("dAt", now)
-                                if (doc.getLong("sAt") == null) doc.reference.update("sAt", now)
+                            if (doc.getString("uid") != me.uid && doc.getLong("sAt") == null) {
+                                doc.reference.update("sAt", now)
                             }
                         }
                         messages = snapshot.documents.mapNotNull { doc ->
