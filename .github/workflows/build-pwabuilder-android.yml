@@ -1,0 +1,98 @@
+name: Build Our Life with PWABuilder (Bubblewrap TWA)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'android-twa/twa-manifest.json'
+      - '.github/workflows/build-pwabuilder-android.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build signed Trusted Web Activity with Bubblewrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY_PASS="$(openssl rand -hex 24)"
+          echo "::add-mask::$KEY_PASS"
+          mkdir -p output
+
+          docker pull ghcr.io/googlechromelabs/bubblewrap:1.25.0
+
+          docker run --rm \
+            -e KEY_PASS="$KEY_PASS" \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -w /workspace \
+            --entrypoint /bin/sh \
+            ghcr.io/googlechromelabs/bubblewrap:1.25.0 \
+            -c '
+              set -eu
+              cd /workspace/android-twa
+
+              keytool -genkeypair -v \
+                -keystore android.keystore \
+                -alias ourlife \
+                -keyalg RSA -keysize 2048 -validity 10000 \
+                -storepass "$KEY_PASS" -keypass "$KEY_PASS" \
+                -dname "CN=Our Life, OU=Mobile App, O=Personal, L=Barishal, ST=Barishal, C=BD"
+
+              bubblewrap doctor || true
+              bubblewrap update --manifest=/workspace/android-twa
+
+              export BUBBLEWRAP_KEYSTORE_PASSWORD="$KEY_PASS"
+              export BUBBLEWRAP_KEY_PASSWORD="$KEY_PASS"
+              bubblewrap build \
+                --manifest=/workspace/android-twa \
+                --signingKeyPath=/workspace/android-twa/android.keystore \
+                --signingKeyAlias=ourlife
+
+              FP="$(keytool -list -v -keystore android.keystore -alias ourlife -storepass "$KEY_PASS" | awk -F": " "/SHA256:/{print \$2; exit}")"
+              test -n "$FP"
+
+              cat > assetlinks.json <<EOF
+              [
+                {
+                  "relation": ["delegate_permission/common.handle_all_urls"],
+                  "target": {
+                    "namespace": "android_app",
+                    "package_name": "com.saimoon.ourlife",
+                    "sha256_cert_fingerprints": ["$FP"]
+                  }
+                }
+              ]
+              EOF
+
+              cat > signing-key-info.txt <<EOF
+              App: Our Life
+              Package ID: com.saimoon.ourlife
+              Keystore file: android.keystore
+              Key alias: ourlife
+              Keystore password: $KEY_PASS
+              Key password: $KEY_PASS
+
+              Keep this file and android.keystore private and backed up.
+              Use the same keystore and passwords for every future app update.
+              EOF
+
+              cp app-release-signed.apk /workspace/output/Our-Life-PWABuilder.apk
+              cp app-release-bundle.aab /workspace/output/Our-Life-PWABuilder.aab
+              cp android.keystore /workspace/output/android.keystore
+              cp signing-key-info.txt /workspace/output/signing-key-info.txt
+              cp assetlinks.json /workspace/output/assetlinks.json
+            '
+
+      - name: Upload signed app and private signing backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: Our-Life-PWABuilder-Signed
+          path: output/
+          if-no-files-found: error
+          retention-days: 1
