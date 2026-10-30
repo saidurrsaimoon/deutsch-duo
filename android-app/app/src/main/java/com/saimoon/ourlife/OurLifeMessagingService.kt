@@ -21,9 +21,9 @@ class OurLifeMessagingService : FirebaseMessagingService() {
     }
 
     private fun saveToken(uid: String, token: String) {
-        val tokenId = (uid + "_" + token.hashCode().toUInt().toString()).replace("/", "_")
-        FirebaseFirestore.getInstance().collection("pushTokens").document(tokenId).set(
-            mapOf("uid" to uid, "token" to token, "updatedAt" to System.currentTimeMillis())
+        FirebaseFirestore.getInstance().collection("users").document(uid).set(
+            mapOf("fcms" to com.google.firebase.firestore.FieldValue.arrayUnion(token)),
+            com.google.firebase.firestore.SetOptions.merge()
         )
     }
 
