@@ -105,11 +105,23 @@ private fun LoginScreen(auth: FirebaseAuth) {
     var password by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    val gradient = Brush.linearGradient(listOf(Rose, DeepRose))
+    var success by remember { mutableStateOf<String?>(null) }
+    var showPassword by remember { mutableStateOf(false) }
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Color(0xFFFFEFF5),
+        unfocusedTextColor = Color(0xFFFFEFF5),
+        focusedLabelColor = Rose,
+        unfocusedLabelColor = MutedDark,
+        focusedPlaceholderColor = MutedDark,
+        unfocusedPlaceholderColor = MutedDark,
+        cursorColor = Rose,
+        focusedBorderColor = Rose,
+        unfocusedBorderColor = MutedDark,
+        focusedContainerColor = Color.Transparent,
+        unfocusedContainerColor = Color.Transparent
+    )
     Box(
-        Modifier.fillMaxSize().background(
-            Brush.radialGradient(listOf(Color(0xFF59304A), Plum))
-        ).padding(22.dp),
+        Modifier.fillMaxSize().background(Plum).padding(22.dp),
         contentAlignment = Alignment.Center
     ) {
         Card(
@@ -122,40 +134,67 @@ private fun LoginScreen(auth: FirebaseAuth) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(13.dp)
             ) {
-                Text("♡", color = Rose, fontSize = 48.sp)
-                Text("OUR LITTLE LIFE", color = Rose, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp)
-                Text("Welcome back", color = Color(0xFFFFEFF5), fontSize = 25.sp, fontWeight = FontWeight.ExtraBold)
-                Text("শুধু Saimoon & Nadiya-র জন্য", color = MutedDark, fontSize = 13.sp)
+                Text("❤️", color = Rose, fontSize = 42.sp)
+                Text("Our Life", color = Color(0xFFFFEFF5), fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
+                Text("Learn together · Grow together", color = MutedDark, fontSize = 13.sp)
+                Spacer(Modifier.height(4.dp))
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it; error = null },
+                    onValueChange = { email = it; error = null; success = null },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Email") }
+                    label = { Text("Email") },
+                    placeholder = { Text("you@example.com") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Next
+                    ),
+                    colors = fieldColors
                 )
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it; error = null },
+                    onValueChange = { password = it; error = null; success = null },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     label = { Text("Password") },
-                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
+                    placeholder = { Text("Your password") },
+                    visualTransformation = if (showPassword) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    trailingIcon = {
+                        TextButton(onClick = { showPassword = !showPassword }) {
+                            Text(if (showPassword) "Hide" else "Show", color = Rose)
+                        }
+                    },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Done
+                    ),
+                    colors = fieldColors
                 )
                 if (error != null) {
                     Text(error!!, color = Color(0xFFFF8298), fontSize = 12.sp)
                 }
+                if (success != null) {
+                    Text(success!!, color = Color(0xFF9BE3B0), fontSize = 12.sp)
+                }
                 Button(
                     onClick = {
                         if (email.isBlank() || password.isBlank()) {
-                            error = "Email ও password দুটোই লিখো"
+                            error = "Enter your email and password."
+                            success = null
                         } else {
                             busy = true
                             error = null
+                            success = null
                             auth.signInWithEmailAndPassword(email.trim(), password)
                                 .addOnCompleteListener { task ->
                                     busy = false
                                     if (!task.isSuccessful) {
-                                        error = task.exception?.localizedMessage ?: "Login হয়নি। আবার চেষ্টা করো।"
+                                        error = when ((task.exception as? com.google.firebase.auth.FirebaseAuthException)?.errorCode) {
+                                            "ERROR_INVALID_CREDENTIAL", "ERROR_WRONG_PASSWORD", "ERROR_USER_NOT_FOUND", "ERROR_INVALID_EMAIL" -> "Incorrect email or password."
+                                            "ERROR_TOO_MANY_REQUESTS" -> "Too many attempts. Try again later."
+                                            "ERROR_NETWORK_REQUEST_FAILED" -> "No internet connection."
+                                            else -> "Couldn't sign in. Please try again."
+                                        }
                                     }
                                 }
                         }
@@ -165,9 +204,32 @@ private fun LoginScreen(auth: FirebaseAuth) {
                     colors = ButtonDefaults.buttonColors(containerColor = DeepRose),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text(if (busy) "Signing in…" else "Sign in", modifier = Modifier.padding(vertical = 5.dp), fontWeight = FontWeight.Bold)
+                    Text(if (busy) "Signing in…" else "Sign in", color = Color.White, modifier = Modifier.padding(vertical = 5.dp), fontWeight = FontWeight.Bold)
                 }
-                Text("নতুন account তৈরি করা যাবে না", color = MutedDark, fontSize = 11.sp)
+                TextButton(
+                    enabled = !busy,
+                    onClick = {
+                        val address = email.trim()
+                        if (address.isBlank()) {
+                            error = "Type your email above first, then tap Forgot password."
+                            success = null
+                        } else {
+                            busy = true
+                            error = null
+                            auth.sendPasswordResetEmail(address).addOnCompleteListener { task ->
+                                busy = false
+                                if (task.isSuccessful) {
+                                    success = "Reset link sent. Check your inbox (and Spam folder)."
+                                } else {
+                                    error = "Could not send the email. Please try again."
+                                }
+                            }
+                        }
+                    }
+                ) {
+                    Text("Forgot password?", color = MutedDark)
+                }
+                Text("A private space for two 💜", color = MutedDark, fontSize = 12.sp)
             }
         }
     }
