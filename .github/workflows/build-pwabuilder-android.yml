@@ -46,7 +46,7 @@ jobs:
 
               SDKMANAGER="$(find /root/.bubblewrap/android_sdk -type f -name sdkmanager -print -quit)"
               test -n "$SDKMANAGER"
-              yes | "$SDKMANAGER" --licenses >/dev/null
+              yes | "$SDKMANAGER" --sdk_root=/root/.bubblewrap/android_sdk --licenses >/dev/null
               bubblewrap doctor || true
               bubblewrap update --skipVersionUpgrade --manifest=twa-manifest.json
 
