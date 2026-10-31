@@ -200,8 +200,11 @@ html,body{overflow-x:clip;max-width:100%}
 /* Header fix: remove the oversized fixed cover that hid the top bar */
 body::before{content:none}
 main{position:relative;z-index:1}
-.hdr{position:sticky;top:0;z-index:30;background:var(--bg)}
-nav{z-index:40}
+/* Mobile scrolling: let the header scroll away naturally; keep only bottom navigation fixed */
+main{height:100dvh;min-height:0;overflow-y:auto;overflow-x:hidden;padding-top:calc(env(safe-area-inset-top,0px) + 8px);padding-bottom:calc(88px + env(safe-area-inset-bottom,0px));scroll-padding-top:8px;scroll-padding-bottom:96px;}
+.hdr{position:relative;top:auto;z-index:2;background:var(--bg);}
+nav{position:fixed;z-index:40;bottom:calc(4px + env(safe-area-inset-bottom,0px));left:8px;right:8px;width:auto;}
+@media (max-width:380px){nav button{font-size:10px;padding:9px 1px}.hdr{margin-left:-14px;margin-right:-14px}}
 </style></head><body><div class="flag"></div><main id="app"><div class="splash"><div class="logo">❤️</div><div class="brand">Our Life</div><div class="mut" id="boot"></div></div></main>
 <nav id="nav"></nav>
 <script type="module">
