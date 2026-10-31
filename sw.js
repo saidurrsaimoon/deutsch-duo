@@ -79,9 +79,17 @@ self.addEventListener("fetch", event => {
 
 self.addEventListener("notificationclick", event => {
   event.notification.close();
-  event.waitUntil(self.clients.matchAll({ type: "window" }).then(list =>
-    list.length ? list[0].focus() : self.clients.openWindow("./")
-  ));
+  const target = event.notification.data && event.notification.data.url
+    ? new URL(event.notification.data.url, self.location.href).href
+    : new URL("./", self.location.href).href;
+  event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async list => {
+    const sameApp = list.find(client => new URL(client.url).origin === self.location.origin);
+    if (sameApp) {
+      try { await sameApp.navigate(target); } catch {}
+      return sameApp.focus();
+    }
+    return self.clients.openWindow(target);
+  }));
 });
 
 self.addEventListener("push", event => {
