@@ -32,7 +32,7 @@ public class MainActivity extends Activity {
     private static final String HOME_URL = "https://saidurrsaimoon.github.io/deutsch-duo/";
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
-    private String pendingUid, pendingIdToken;
+    private String pendingUid;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -95,7 +95,7 @@ public class MainActivity extends Activity {
 
     private class PushBridge {
         @JavascriptInterface public void enablePush(String uid, String idToken) {
-            pendingUid = uid; pendingIdToken = idToken;
+            pendingUid = uid;
             if (android.os.Build.VERSION.SDK_INT >= 33 &&
                 ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_REQUEST);
@@ -112,34 +112,19 @@ public class MainActivity extends Activity {
     }
 
     private void registerNativeToken() {
-        FirebaseMessaging.getInstance().getToken().addOnSuccessListener(token -> new Thread(() -> {
-            try {
-                JSONObject value = new JSONObject().put("stringValue", token);
-                JSONObject transform = new JSONObject().put("document", "projects/" + PROJECT + "/databases/(default)/documents/users/" + pendingUid)
-                    .put("fieldTransforms", new JSONArray().put(new JSONObject().put("fieldPath", "fcms")
-                    .put("appendMissingElements", new JSONObject().put("values", new JSONArray().put(value)))));
-                JSONObject body = new JSONObject().put("writes", new JSONArray().put(new JSONObject().put("transform", transform)));
-                HttpURLConnection c = (HttpURLConnection)new URL("https://firestore.googleapis.com/v1/projects/" + PROJECT + "/databases/(default)/documents:commit").openConnection();
-                c.setRequestMethod("POST"); c.setConnectTimeout(10000); c.setReadTimeout(15000); c.setDoOutput(true);
-                c.setRequestProperty("Content-Type", "application/json");
-                c.setRequestProperty("Authorization", "Bearer " + pendingIdToken);
-                c.getOutputStream().write(body.toString().getBytes("UTF-8"));
-                int status = c.getResponseCode();
-                java.io.InputStream stream = status >= 200 && status < 300 ? c.getInputStream() : c.getErrorStream();
-                java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
-                if (stream != null) { byte[] buffer = new byte[2048]; int n; while ((n = stream.read(buffer)) > 0) bytes.write(buffer, 0, n); stream.close(); }
-                String response = bytes.toString("UTF-8");
-                c.disconnect();
-                notifyWeb(status >= 200 && status < 300, status >= 200 && status < 300
-                    ? "Android push notifications are enabled. FCM token saved."
-                    : "Token save failed (HTTP " + status + "): " + response.substring(0, Math.min(response.length(), 240)));
-            } catch (Exception e) { notifyWeb(false, "Push setup failed: " + e.getMessage()); }
-        }).start()).addOnFailureListener(e -> notifyWeb(false, "Could not get notification token."));
+        FirebaseMessaging.getInstance().getToken()
+            .addOnSuccessListener(token -> notifyWebToken(token))
+            .addOnFailureListener(e -> notifyWebError("Could not get this phone's FCM token: " + e.getMessage()));
     }
 
-    private void notifyWeb(boolean ok, String message) {
+    private void notifyWebToken(String token) {
         if (webView != null) runOnUiThread(() -> webView.evaluateJavascript(
-            "window.onNativePushReady && window.onNativePushReady(" + ok + "," + JSONObject.quote(message) + ")", null));
+            "window.onNativePushToken && window.onNativePushToken(" + JSONObject.quote(token) + ")", null));
+    }
+
+    private void notifyWebError(String message) {
+        if (webView != null) runOnUiThread(() -> webView.evaluateJavascript(
+            "window.onNativePushError && window.onNativePushError(" + JSONObject.quote(message) + ")", null));
     }
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
