@@ -44,6 +44,7 @@ public class MainActivity extends Activity {
         setContentView(webView);
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
+        settings.setUserAgentString(settings.getUserAgentString() + " OurLifeApp/1.0");
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
         settings.setLoadsImagesAutomatically(true);
@@ -89,6 +90,7 @@ public class MainActivity extends Activity {
                 .setProjectId(PROJECT).setGcmSenderId("660528509397").build();
             FirebaseApp.initializeApp(this, options);
         }
+        FirebaseMessaging.getInstance().setAutoInitEnabled(true);
     }
 
     private class PushBridge {
@@ -122,8 +124,15 @@ public class MainActivity extends Activity {
                 c.setRequestProperty("Content-Type", "application/json");
                 c.setRequestProperty("Authorization", "Bearer " + pendingIdToken);
                 c.getOutputStream().write(body.toString().getBytes("UTF-8"));
-                int status = c.getResponseCode(); c.disconnect();
-                notifyWeb(status >= 200 && status < 300, status >= 200 && status < 300 ? "Android push notifications are enabled." : "Could not save this phone's notification token (HTTP " + status + ").");
+                int status = c.getResponseCode();
+                java.io.InputStream stream = status >= 200 && status < 300 ? c.getInputStream() : c.getErrorStream();
+                java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+                if (stream != null) { byte[] buffer = new byte[2048]; int n; while ((n = stream.read(buffer)) > 0) bytes.write(buffer, 0, n); stream.close(); }
+                String response = bytes.toString("UTF-8");
+                c.disconnect();
+                notifyWeb(status >= 200 && status < 300, status >= 200 && status < 300
+                    ? "Android push notifications are enabled. FCM token saved."
+                    : "Token save failed (HTTP " + status + "): " + response.substring(0, Math.min(response.length(), 240)));
             } catch (Exception e) { notifyWeb(false, "Push setup failed: " + e.getMessage()); }
         }).start()).addOnFailureListener(e -> notifyWeb(false, "Could not get notification token."));
     }
