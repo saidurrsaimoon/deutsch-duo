@@ -196,7 +196,7 @@ html,body{overflow-x:clip;max-width:100%}
 .off{top:calc(env(safe-area-inset-top,0px) + 8px);left:12px;right:12px;max-width:520px;margin:0 auto;border-radius:99px;padding:10px 16px;background:color-mix(in srgb,var(--card) 90%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);color:var(--tx);border:1px solid #e8a93b;box-shadow:0 10px 30px rgba(0,0,0,.32);display:flex;align-items:center;justify-content:center;gap:10px;animation:tIn .45s cubic-bezier(.2,1.2,.3,1);font-size:13px;font-weight:700}
 .off::before{content:"";width:9px;height:9px;border-radius:50%;background:#e8a93b;animation:blink2 1.2s infinite;flex:none}
 .off.ok{border-color:var(--ok)}.off.ok::before{background:var(--ok);animation:none}
-</style></head><body><div class="flag"></div><main id="app"><div class="splash"><div class="logo">❤️</div><div class="brand">Our Life</div><div class="mut" id="boot"></div></div></main>
+.flag{height:env(safe-area-inset-top)!important;background:var(--bg)!important;position:fixed;top:0;left:0;right:0;z-index:50}</style></head><body><div class="flag"></div><main id="app"><div class="splash"><div class="logo">❤️</div><div class="brand">Our Life</div><div class="mut" id="boot"></div></div></main>
 <nav id="nav"></nav>
 <script type="module">
 window.addEventListener("error",e=>{const b=document.getElementById("boot");if(b)b.textContent="ত্রুটি: "+(e.message||"script লোড হয়নি")});
