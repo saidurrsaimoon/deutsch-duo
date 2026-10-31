@@ -249,9 +249,17 @@ private fun AuthenticatedOurLifeApp(auth: FirebaseAuth) {
             }
         }
     }
+    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
     var selected by remember { mutableStateOf("Home") }
     var previousPage by remember { mutableStateOf("Home") }
-    BackHandler(enabled = selected == "Chat") { selected = "Home"; previousPage = "Home" }
+    BackHandler(enabled = true) {
+        if (selected == "Chat") {
+            selected = "Home"
+            previousPage = "Home"
+        } else {
+            activity?.finish()
+        }
+    }
     var theme by remember { mutableStateOf("Dark") }
     val dark = theme == "Dark"
     val bg = if (dark) Plum else Cream
