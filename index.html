@@ -196,7 +196,13 @@ html,body{overflow-x:clip;max-width:100%}
 .off{top:calc(env(safe-area-inset-top,0px) + 8px);left:12px;right:12px;max-width:520px;margin:0 auto;border-radius:99px;padding:10px 16px;background:color-mix(in srgb,var(--card) 90%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);color:var(--tx);border:1px solid #e8a93b;box-shadow:0 10px 30px rgba(0,0,0,.32);display:flex;align-items:center;justify-content:center;gap:10px;animation:tIn .45s cubic-bezier(.2,1.2,.3,1);font-size:13px;font-weight:700}
 .off::before{content:"";width:9px;height:9px;border-radius:50%;background:#e8a93b;animation:blink2 1.2s infinite;flex:none}
 .off.ok{border-color:var(--ok)}.off.ok::before{background:var(--ok);animation:none}
-.flag{height:env(safe-area-inset-top)!important;background:var(--bg)!important;position:fixed;top:0;left:0;right:0;z-index:50}</style></head><body><div class="flag"></div><main id="app"><div class="splash"><div class="logo">❤️</div><div class="brand">Our Life</div><div class="mut" id="boot"></div></div></main>
+.flag{height:env(safe-area-inset-top)!important;background:var(--bg)!important;position:fixed;top:0;left:0;right:0;z-index:50}
+/* Header top safe-area cover: stays behind app content and follows theme */
+body::before{content:"";position:fixed;top:0;left:0;right:0;height:245px;background:var(--bg);z-index:0;pointer-events:none}
+main{position:relative;z-index:1}
+.hdr{z-index:100;background:var(--bg)}
+body.chatmode .chat{z-index:2}
+</style></head><body><div class="flag"></div><main id="app"><div class="splash"><div class="logo">❤️</div><div class="brand">Our Life</div><div class="mut" id="boot"></div></div></main>
 <nav id="nav"></nav>
 <script type="module">
 window.addEventListener("error",e=>{const b=document.getElementById("boot");if(b)b.textContent="ত্রুটি: "+(e.message||"script লোড হয়নি")});
@@ -355,6 +361,12 @@ function chatV(){const fallback=`<div class="chat"><div class="chead"><button cl
 const say=(text,re=null)=>{const p=addDoc(collection(db,"chat"),{uid:U.uid,name:me.name,text,t:Date.now(),re});pushNotify(text);lt=0;setDoc(doc(db,"users",U.uid),{typ:0},{merge:true}).catch(()=>{});return p};
 async function pushNotify(text){const o=usersMap[PUID()];if(!PUSH_URL||!o?.fcms?.length)return;try{const t=await auth.currentUser.getIdToken();const r=await fetch(PUSH_URL,{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+t},body:JSON.stringify({tokens:o.fcms.slice(-3),title:me.name,body:text.slice(0,140)}),keepalive:true});const data=await r.json().catch(()=>({}));const failed=data.results?data.results.filter(x=>!x.ok).map(x=>"HTTP "+x.status+" "+(x.error||"")):(data.sent||[]).filter(n=>n<200||n>=300).map(n=>"FCM HTTP "+n);if(!r.ok||failed.length){const detail=failed.join("; ")||"HTTP "+r.status;toast("Push notification failed: "+detail.slice(0,180))}}catch(e){toast("Push notification connection failed: "+(e.message||e))}}
 async function enablePush(){try{if(window.OurLifeAndroid){return await new Promise(resolve=>{let done=false;const finish=m=>{if(done)return;done=true;resolve(m)};window.onNativePushToken=async token=>{try{await setDoc(doc(db,"users",U.uid),{fcms:arrayUnion(token)},{merge:true});localStorage.setItem("nativePushStatus","enabled");finish("Android notifications enabled. This phone is registered.");}catch(e){finish("Token save failed: "+(e.message||e))}};window.onNativePushError=msg=>{localStorage.setItem("nativePushStatus","error");finish(msg)};window.OurLifeAndroid.enablePush(U.uid);setTimeout(()=>finish("Notification setup timed out. Please try again."),20000)})}const perm=await Notification.requestPermission();if(perm!=="granted")return"Notifications are blocked in browser settings.";if(!VAPID||!PUSH_URL)return"Allowed. Background push is not set up yet.";const reg=await navigator.serviceWorker.ready;const tk=await getToken(getMessaging(app),{vapidKey:VAPID,serviceWorkerRegistration:reg});if(!tk)return"Could not get a push token.";await setDoc(doc(db,"users",U.uid),{fcms:arrayUnion(tk)},{merge:true});return"Push notifications are on for this device."}catch(e){return"Push setup failed: "+(e.message||e)}}
+async function showNotification(title,body,url="./"){
+ if(!("Notification" in window)||Notification.permission!=="granted")return false;
+ try{const reg=await navigator.serviceWorker.ready;await reg.showNotification(title,{body,icon:"icon-192.png",badge:"badge-72.png",vibrate:[200,100,200],tag:"our-life-test",renotify:true,data:{url}});return true}
+ catch(e){console.warn("Notification display failed:",e);return false}
+}
+
 function startEdit(id){const m=chat.find(x=>x.id===id);if(!m||m.uid!==U.uid)return;editing={id,text:m.text};replyTo=null;const rb=$("#rb");if(rb){rb.innerHTML=rbar();emojify(rb)}const i=$("#cm");if(i){i.value=m.text;draft=m.text;i.focus()}}
 async function send(){const i=$("#cm"),t=i.value.trim();if(!t)return;i.value="";draft="";const rb=$("#rb");if(editing){const e=editing;editing=null;if(rb)rb.innerHTML="";if(t!==e.text)await updateDoc(doc(db,"chat",e.id),{text:t,edAt:Date.now()}).catch(()=>{});return}const re=replyTo;replyTo=null;if(rb)rb.innerHTML="";await say(t,re);ping()}
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferred=e;render()});
@@ -530,7 +542,7 @@ document.addEventListener("click",async e=>{const t=e.target.closest("button,[da
  if(D.act==="norep"){replyTo=null;const rb=$("#rb");if(rb)rb.innerHTML=""}
  if(D.act==="theme"){theme=document.documentElement.dataset.th==="light"?"dark":"light";localStorage.setItem("th",theme);applyTheme();render(true)}
  if(D.th){theme=D.th;localStorage.setItem("th",theme);applyTheme();render(true)}
- if(D.act==="notif"){if(window.OurLifeAndroid||("Notification" in window)){const r=await enablePush();if(window.OurLifeAndroid)localStorage.setItem("nativePushStatus",r);render(true);alert(r)}else alert("This browser does not support notifications.")}
+ if(D.act==="notif"){if(window.OurLifeAndroid||("Notification" in window)){const r=await enablePush();if(window.OurLifeAndroid)localStorage.setItem("nativePushStatus",r);else if(Notification.permission==="granted")await showNotification("Our Life 💕","Notification is working on this device!");render(true);alert(r)}else alert("This browser does not support notifications.")}
  if(D.goto){const el=document.querySelector(`.msg[data-id="${D.goto}"]`);if(el){el.scrollIntoView({block:"center",behavior:"smooth"});el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),1300)}}
  if(D.act==="bk")backup();
  if(D.act==="rs")$("#bkf")?.click();
