@@ -525,7 +525,7 @@ document.addEventListener("change",async e=>{const t=e.target;
  if(t.id==="flt"){flt=t.value;render()}
  if(t.id==="cat"){$("#art").style.display=t.value==="Noun"?"":"none"}});
 document.addEventListener("click",async e=>{const t=e.target.closest("button,[data-mean],[data-goto]");if(!t||!U)return;const D=t.dataset;
- if(D.tab){document.activeElement?.blur();ed=null;if(D.tab==="chat"&&"Notification" in window&&Notification.permission==="default")Notification.requestPermission();nav(D.tab)}
+ if(D.tab){document.activeElement?.blur();ed=null;if(D.tab==="chat"&&!window.OurLifeAndroid&&"Notification" in window&&Notification.permission==="default")Notification.requestPermission();nav(D.tab)}
  if(D.act==="out")signOut(auth);
  if(D.act==="norep"){replyTo=null;const rb=$("#rb");if(rb)rb.innerHTML=""}
  if(D.act==="theme"){theme=document.documentElement.dataset.th==="light"?"dark":"light";localStorage.setItem("th",theme);applyTheme();render(true)}
