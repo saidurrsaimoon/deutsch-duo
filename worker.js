@@ -35,7 +35,7 @@ export default{async fetch(req,env){
     const{tokens,title,body}=await req.json();
     const at=await accessToken(env);
     const out=await Promise.all((tokens||[]).slice(0,3).map(async t=>{
-      const r=await fetch(`https://fcm.googleapis.com/v1/projects/${PROJECT}/messages:send`,{method:"POST",headers:{Authorization:"Bearer "+at,"Content-Type":"application/json"},body:JSON.stringify({message:{token:t,data:{title:String(title||"Our Life").slice(0,60),body:String(body||"").slice(0,140)},webpush:{headers:{Urgency:"high",TTL:"86400"}}}})});
+      const r=await fetch(`https://fcm.googleapis.com/v1/projects/${PROJECT}/messages:send`,{method:"POST",headers:{Authorization:"Bearer "+at,"Content-Type":"application/json"},body:JSON.stringify({message:{token:t,data:{title:String(title||"Our Life").slice(0,60),body:String(body||"").slice(0,140)},android:{priority:"HIGH",ttl:"86400s",notification:{channel_id:"our_little_life_messages",sound:"default",default_vibrate_timings:true}},webpush:{headers:{Urgency:"high",TTL:"86400"}}}})});
       const raw=await r.text();let detail={};try{detail=JSON.parse(raw)}catch{}
       return {status:r.status,ok:r.ok,error:r.ok?"":(detail.error?.message||raw).slice(0,240)};
     }));
