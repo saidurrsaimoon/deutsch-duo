@@ -107,7 +107,7 @@ public class MainActivity extends Activity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == NOTIFICATION_REQUEST) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) registerNativeToken();
-            else notifyWeb(false, "Phone notification permission is denied.");
+            else notifyWebError("Phone notification permission is denied.");
         }
     }
 
