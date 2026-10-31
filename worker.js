@@ -34,7 +34,11 @@ export default{async fetch(req,env){
     await verify((req.headers.get("Authorization")||"").replace("Bearer ",""));
     const{tokens,title,body}=await req.json();
     const at=await accessToken(env);
-    const out=await Promise.all((tokens||[]).slice(0,3).map(t=>fetch(`https://fcm.googleapis.com/v1/projects/${PROJECT}/messages:send`,{method:"POST",headers:{Authorization:"Bearer "+at,"Content-Type":"application/json"},body:JSON.stringify({message:{token:t,data:{title:String(title||"Our Life").slice(0,60),body:String(body||"").slice(0,140)},webpush:{headers:{Urgency:"high",TTL:"86400"}}}})}).then(r=>r.status)));
-    return new Response(JSON.stringify({sent:out}),{headers:{...cors,"Content-Type":"application/json"}});
+    const out=await Promise.all((tokens||[]).slice(0,3).map(async t=>{
+      const r=await fetch(`https://fcm.googleapis.com/v1/projects/${PROJECT}/messages:send`,{method:"POST",headers:{Authorization:"Bearer "+at,"Content-Type":"application/json"},body:JSON.stringify({message:{token:t,data:{title:String(title||"Our Life").slice(0,60),body:String(body||"").slice(0,140)},webpush:{headers:{Urgency:"high",TTL:"86400"}}}})});
+      const raw=await r.text();let detail={};try{detail=JSON.parse(raw)}catch{}
+      return {status:r.status,ok:r.ok,error:r.ok?"":(detail.error?.message||raw).slice(0,240)};
+    }));
+    return new Response(JSON.stringify({results:out}),{headers:{...cors,"Content-Type":"application/json"}});
   }catch(e){return new Response("denied",{status:401,headers:cors})}
 }};
