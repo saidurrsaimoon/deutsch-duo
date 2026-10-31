@@ -392,6 +392,7 @@ async function enablePush(){
   const tk=await getToken(getMessaging(app),{vapidKey:VAPID,serviceWorkerRegistration:reg});
   if(!tk)return"FCM token পাওয়া যায়নি। Chrome update করে আবার চেষ্টা করো।";
   await setDoc(doc(db,"users",U.uid),{fcms:arrayUnion(tk),pushEnabled:true,pushUpdatedAt:Date.now()},{merge:true});
+  startForegroundPush();
   return"Notifications enabled. এই ফোনে app বন্ধ থাকলেও message alert আসতে পারে।";
  }catch(e){console.error("Push setup failed",e);return"Push setup failed: "+(e.message||e)}
 }
