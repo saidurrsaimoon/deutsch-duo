@@ -793,9 +793,12 @@ private fun sendPartnerPush(
 ) {
     db.collection("users").document(partnerUid).get().addOnSuccessListener { partner ->
         val tokens = (partner.get("fcms") as? List<*>)?.filterIsInstance<String>()?.takeLast(3) ?: emptyList()
-        val isOnline = partner.getBoolean("vis") == true &&
-            System.currentTimeMillis() - (partner.getLong("seen") ?: 0L) < 70000L
-        if (tokens.isEmpty() || isOnline) return@addOnSuccessListener
+        // Always send the push. Suppressing it based on a stale "online" flag
+        // caused messages to disappear when the partner app was open in background.
+        if (tokens.isEmpty()) {
+            android.util.Log.w("OurLifePush", "No registered FCM tokens for partner $partnerUid")
+            return@addOnSuccessListener
+        }
         auth.currentUser?.getIdToken(false)?.addOnSuccessListener { result ->
             val idToken = result.token ?: return@addOnSuccessListener
             Thread {
@@ -814,7 +817,11 @@ private fun sendPartnerPush(
                         .toString()
                     connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
                     val status = connection.responseCode
-                    android.util.Log.d("OurLifePush", "Push endpoint HTTP $status")
+                    val response = try {
+                        (if (status in 200..299) connection.inputStream else connection.errorStream)
+                            ?.bufferedReader()?.use { it.readText() } ?: ""
+                    } catch (_: Exception) { "" }
+                    android.util.Log.d("OurLifePush", "Push endpoint HTTP $status: $response")
                     connection.disconnect()
                 } catch (e: Exception) {
                     android.util.Log.e("OurLifePush", "Push request failed", e)
