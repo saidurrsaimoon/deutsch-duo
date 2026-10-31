@@ -41,11 +41,11 @@ class OurLifeMessagingService : FirebaseMessagingService() {
             }
             manager.createNotificationChannel(channel)
         }
-        val openChat = Intent(this, NativeHomeActivity::class.java).apply {
+        val openApp = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("open_chat", true)
         }
-        val pending = PendingIntent.getActivity(this, 410, openChat,
+        val pending = PendingIntent.getActivity(this, 410, openApp,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_email)
