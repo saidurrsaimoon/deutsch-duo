@@ -212,7 +212,7 @@ window.addEventListener("error",e=>{const b=document.getElementById("boot");if(b
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut,sendPasswordResetEmail,updatePassword,reauthenticateWithCredential,EmailAuthProvider} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {getFirestore,doc,setDoc,getDoc,getDocs,collection,addDoc,deleteDoc,updateDoc,onSnapshot,query,orderBy,limit,arrayUnion,deleteField,initializeFirestore,persistentLocalCache,persistentMultipleTabManager} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import {getMessaging,getToken} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
+import {getMessaging,getToken,onMessage} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
 // ==== 1) Firebase config এখানে বসাও ====
 const firebaseConfig={apiKey:"AIzaSyBwsCFD4YzcoCD_vbEHm5jfxStzcdamLHU",authDomain:"deutsch-duo-8f489.firebaseapp.com",projectId:"deutsch-duo-8f489",storageBucket:"deutsch-duo-8f489.firebasestorage.app",messagingSenderId:"660528509397",appId:"1:660528509397:web:491213214b8f86d2818d5c"};
@@ -275,7 +275,7 @@ onAuthStateChanged(auth,async u=>{unsubs.forEach(f=>f());unsubs=[];U=u;
  setDoc(doc(db,"users",U.uid,"devices",did),{name:devName(),seen:Date.now(),revoked:false,since:Number(localStorage.getItem("dsince")||Date.now())},{merge:true}).catch(()=>{});try{if(!localStorage.getItem("dsince"))localStorage.setItem("dsince",Date.now())}catch(e){}
  unsubs.push(onSnapshot(collection(db,"users",U.uid,"devices"),sn=>{devs=sn.docs.map(d=>({id:d.id,...d.data()}));if(devs.find(x=>x.id===did)?.revoked){alert("This device was signed out from another device.");signOut(auth);return}if(tab==="set")render()},()=>{}));
  unsubs.push(onSnapshot(collection(db,"qz"),sn=>{QZ={};sn.docs.forEach(d=>QZ[d.id]=d.data());if(tab==="games")render()},()=>{}));
- startPresence();setTimeout(()=>{if(window.OurLifeAndroid&&localStorage.getItem("nativePushStatus")==="enabled")enablePush();else if("Notification" in window&&Notification.permission==="granted"&&VAPID&&PUSH_URL)enablePush()},1800);
+ startPresence();startForegroundPush();setTimeout(()=>{if(window.OurLifeAndroid&&localStorage.getItem("nativePushStatus")==="enabled")enablePush();else if("Notification" in window&&Notification.permission==="granted"&&VAPID&&PUSH_URL)enablePush()},1800);
  ["dates","mems","letters","meets"].forEach(c=>unsubs.push(onSnapshot(collection(db,c),sn=>{L[c]=sn.docs.map(d=>({id:d.id,...d.data()}));render()})));
 });
 function loginView(){$("#nav").style.display="none";$("#app").innerHTML=`<div class="login"><div class="logo">❤️</div><h1 class="glow" style="text-align:center;font-size:36px;margin:6px 0">Our Life</h1><div class="mut" style="text-align:center;margin-bottom:22px">Learn together · Grow together</div>
@@ -408,6 +408,22 @@ document.addEventListener("input",e=>{if(e.target.id==="cm"){draft=e.target.valu
 document.addEventListener("keydown",e=>{if(e.target.id==="cm"&&e.key==="Enter")send()});
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 const PUSH_URL="https://our-life-push-api.saidurrsaimoon.workers.dev/",VAPID="BCUJCCz-9nKhVQmHPkeI3OY2FCuUfM-OT5atkTozr76_Q9Ccy-jP_DsD_uPbYJZsa73gWUPY47RKt6a4c4s6Xok"; // filled after Cloudflare + FCM setup
+
+// Foreground FCM: show an actual phone/browser notification even while the site is open.
+let foregroundMessagingStarted=false;
+function startForegroundPush(){
+ if(foregroundMessagingStarted||!U||!("Notification" in window)||Notification.permission!=="granted")return;
+ try{
+  const messaging=getMessaging(app);
+  onMessage(messaging,payload=>{
+   const data=payload.data||{},note=payload.notification||{};
+   const title=data.title||note.title||"Our Life";
+   const body=data.body||note.body||"New message";
+   showNotification(title,body);
+  });
+  foregroundMessagingStarted=true;
+ }catch(e){console.warn("Foreground push setup failed:",e)}
+}
 let editing=null,replyTo=null,pressT=null,sx=0,sy=0,pm=false,usersMap={},pdays={},pwords=[],presT=null,firstChat=true,shownTab="",theme=localStorage.getItem("th")||"dark";
 const PUID=()=>Object.keys(PEOPLE).find(k=>k!==U?.uid);
 const pname=()=>usersMap[PUID()]?.name||chat.find(m=>m.uid!==U?.uid)?.name||"Partner";
