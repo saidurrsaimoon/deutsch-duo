@@ -358,7 +358,7 @@ let chatTemplate="";
 fetch("chat.html").then(r=>{if(!r.ok)throw new Error("chat.html unavailable");return r.text()}).then(t=>{chatTemplate=t;if(tab==="chat")render(true)}).catch(()=>{});
 function chatV(){const fallback=`<div class="chat"><div class="chead"><button class="x" data-tab="hub" style="font-size:26px">←</button>${av(PUID(),pname(),40)}<div><b>${esc(pname())}</b><div class="st" id="pst"></div></div></div><div id="cl">${chatList()}</div><div id="rb">${rbar()}</div><div class="cbar"><input id="cm" placeholder="Message" autocomplete="off" enterkeyhint="send"><button class="send" data-act="send" aria-label="Send"><svg viewBox="0 0 24 24" width="22" height="22"><path fill="#fff" d="M3 20.5v-6.2l9-2.3-9-2.3V3.5l19 8.5z"/></svg></button></div></div>`;const t=chatTemplate||fallback;return t.replace("{{PARTNER_AVATAR}}",av(PUID(),pname(),40)).replace("{{PARTNER_NAME}}",esc(pname())).replace("{{CHAT_MESSAGES}}",chatList()).replace("{{REPLY_BAR}}",rbar())}
 
-const say=async(text,re=null)=>{const p=await addDoc(collection(db,"chat"),{uid:U.uid,name:me.name,text,t:Date.now(),re});pushNotify(text,p.id);lt=0;setDoc(doc(db,"users",U.uid),{typ:0},{merge:true}).catch(()=>{});return p};
+const say=async(text,re=null)=>{const p=await addDoc(collection(db,"chat"),{uid:U.uid,name:me.name,text,t:Date.now(),re});await pushNotify(text,p.id);lt=0;setDoc(doc(db,"users",U.uid),{typ:0},{merge:true}).catch(()=>{});return p};
 async function pushNotify(text,messageId){
  try{
   const partnerId=PUID();
