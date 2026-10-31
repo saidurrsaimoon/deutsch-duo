@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
     }
 
     private class PushBridge {
-        @JavascriptInterface public void enablePush(String uid, String idToken) {
+        @JavascriptInterface public void enablePush(String uid) {
             pendingUid = uid;
             if (android.os.Build.VERSION.SDK_INT >= 33 &&
                 ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
