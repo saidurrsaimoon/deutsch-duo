@@ -41,7 +41,7 @@ class OurLifeMessagingService : FirebaseMessagingService() {
             }
             manager.createNotificationChannel(channel)
         }
-        val openChat = Intent(this, MainActivity::class.java).apply {
+        val openChat = Intent(this, NativeHomeActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("open_chat", true)
         }
