@@ -197,11 +197,11 @@ html,body{overflow-x:clip;max-width:100%}
 .off::before{content:"";width:9px;height:9px;border-radius:50%;background:#e8a93b;animation:blink2 1.2s infinite;flex:none}
 .off.ok{border-color:var(--ok)}.off.ok::before{background:var(--ok);animation:none}
 .flag{height:env(safe-area-inset-top)!important;background:var(--bg)!important;position:fixed;top:0;left:0;right:0;z-index:50}
-/* Solid top cover requested for the header area */
-body::before{content:"";position:fixed;top:0;left:0;right:0;height:245px;background:#1c0f1d;z-index:90;pointer-events:none}
-main{position:relative;z-index:91}
-.hdr{position:sticky;top:env(safe-area-inset-top);z-index:100;background:#1c0f1d}
-nav{z-index:110}
+/* Header fix: remove the oversized fixed cover that hid the top bar */
+body::before{content:none}
+main{position:relative;z-index:1}
+.hdr{position:sticky;top:0;z-index:30;background:var(--bg)}
+nav{z-index:40}
 </style></head><body><div class="flag"></div><main id="app"><div class="splash"><div class="logo">❤️</div><div class="brand">Our Life</div><div class="mut" id="boot"></div></div></main>
 <nav id="nav"></nav>
 <script type="module">
