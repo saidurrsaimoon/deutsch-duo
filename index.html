@@ -358,9 +358,40 @@ let chatTemplate="";
 fetch("chat.html").then(r=>{if(!r.ok)throw new Error("chat.html unavailable");return r.text()}).then(t=>{chatTemplate=t;if(tab==="chat")render(true)}).catch(()=>{});
 function chatV(){const fallback=`<div class="chat"><div class="chead"><button class="x" data-tab="hub" style="font-size:26px">←</button>${av(PUID(),pname(),40)}<div><b>${esc(pname())}</b><div class="st" id="pst"></div></div></div><div id="cl">${chatList()}</div><div id="rb">${rbar()}</div><div class="cbar"><input id="cm" placeholder="Message" autocomplete="off" enterkeyhint="send"><button class="send" data-act="send" aria-label="Send"><svg viewBox="0 0 24 24" width="22" height="22"><path fill="#fff" d="M3 20.5v-6.2l9-2.3-9-2.3V3.5l19 8.5z"/></svg></button></div></div>`;const t=chatTemplate||fallback;return t.replace("{{PARTNER_AVATAR}}",av(PUID(),pname(),40)).replace("{{PARTNER_NAME}}",esc(pname())).replace("{{CHAT_MESSAGES}}",chatList()).replace("{{REPLY_BAR}}",rbar())}
 
-const say=(text,re=null)=>{const p=addDoc(collection(db,"chat"),{uid:U.uid,name:me.name,text,t:Date.now(),re});pushNotify(text);lt=0;setDoc(doc(db,"users",U.uid),{typ:0},{merge:true}).catch(()=>{});return p};
-async function pushNotify(text){const o=usersMap[PUID()];if(!PUSH_URL||!o?.fcms?.length)return;try{const t=await auth.currentUser.getIdToken();const r=await fetch(PUSH_URL,{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+t},body:JSON.stringify({tokens:o.fcms.slice(-3),title:me.name,body:text.slice(0,140)}),keepalive:true});const data=await r.json().catch(()=>({}));const failed=data.results?data.results.filter(x=>!x.ok).map(x=>"HTTP "+x.status+" "+(x.error||"")):(data.sent||[]).filter(n=>n<200||n>=300).map(n=>"FCM HTTP "+n);if(!r.ok||failed.length){const detail=failed.join("; ")||"HTTP "+r.status;toast("Push notification failed: "+detail.slice(0,180))}}catch(e){toast("Push notification connection failed: "+(e.message||e))}}
-async function enablePush(){try{if(window.OurLifeAndroid){return await new Promise(resolve=>{let done=false;const finish=m=>{if(done)return;done=true;resolve(m)};window.onNativePushToken=async token=>{try{await setDoc(doc(db,"users",U.uid),{fcms:arrayUnion(token)},{merge:true});localStorage.setItem("nativePushStatus","enabled");finish("Android notifications enabled. This phone is registered.");}catch(e){finish("Token save failed: "+(e.message||e))}};window.onNativePushError=msg=>{localStorage.setItem("nativePushStatus","error");finish(msg)};window.OurLifeAndroid.enablePush(U.uid);setTimeout(()=>finish("Notification setup timed out. Please try again."),20000)})}const perm=await Notification.requestPermission();if(perm!=="granted")return"Notifications are blocked in browser settings.";if(!VAPID||!PUSH_URL)return"Allowed. Background push is not set up yet.";const reg=await navigator.serviceWorker.ready;const tk=await getToken(getMessaging(app),{vapidKey:VAPID,serviceWorkerRegistration:reg});if(!tk)return"Could not get a push token.";await setDoc(doc(db,"users",U.uid),{fcms:arrayUnion(tk)},{merge:true});return"Push notifications are on for this device."}catch(e){return"Push setup failed: "+(e.message||e)}}
+const say=async(text,re=null)=>{const p=await addDoc(collection(db,"chat"),{uid:U.uid,name:me.name,text,t:Date.now(),re});pushNotify(text,p.id);lt=0;setDoc(doc(db,"users",U.uid),{typ:0},{merge:true}).catch(()=>{});return p};
+async function pushNotify(text,messageId){
+ try{
+  const partnerId=PUID();
+  const partner=await getDoc(doc(db,"users",partnerId));
+  const tokens=partner.exists()?(partner.data().fcms||[]):[];
+  if(!PUSH_URL||!tokens.length){console.warn("Push not sent: partner device has no registered FCM token.");return}
+  const idToken=await auth.currentUser.getIdToken();
+  const response=await fetch(PUSH_URL,{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+idToken},body:JSON.stringify({tokens:tokens.slice(-3),title:me.name,body:text.slice(0,140)}),keepalive:true});
+  const result=await response.json().catch(()=>({}));
+  const sent=Array.isArray(result.results)?result.results.filter(x=>x.ok).length:0;
+  const failed=Array.isArray(result.results)?result.results.filter(x=>!x.ok):[];
+  if(!response.ok||!sent){console.error("Push delivery failed",response.status,failed);return}
+  // Double tick means FCM accepted the message for the partner's registered device.
+  await updateDoc(doc(db,"chat",messageId),{dAt:Date.now()}).catch(e=>console.warn("Delivery receipt update failed:",e));
+ }catch(e){console.error("Push notification error:",e)}
+}
+async function enablePush(){
+ try{
+  if(window.OurLifeAndroid){return await new Promise(resolve=>{let done=false;const finish=m=>{if(done)return;done=true;resolve(m)};window.onNativePushToken=async token=>{try{await setDoc(doc(db,"users",U.uid),{fcms:arrayUnion(token)},{merge:true});localStorage.setItem("nativePushStatus","enabled");finish("Android notifications enabled. This phone is registered.");}catch(e){finish("Token save failed: "+(e.message||e))}};window.onNativePushError=msg=>{localStorage.setItem("nativePushStatus","error");finish(msg)};window.OurLifeAndroid.enablePush(U.uid);setTimeout(()=>finish("Notification setup timed out. Please try again."),20000)})}
+  if(!("Notification" in window))return"এই browser notification support করে না। Chrome ব্যবহার করো।";
+  if(!("serviceWorker" in navigator))return"এই browser background notification support করে না।";
+  if(Notification.permission==="denied")return"Chrome-এ site settings → Notifications → Allow করে আবার চেষ্টা করো।";
+  const perm=await Notification.requestPermission();
+  if(perm!=="granted")return"Notification permission দেওয়া হয়নি। Chrome site settings থেকে Allow করো।";
+  if(!VAPID||!PUSH_URL)return"Permission হয়েছে, কিন্তু push configuration missing.";
+  const reg=await navigator.serviceWorker.register("sw.js",{updateViaCache:"none"});
+  await navigator.serviceWorker.ready;
+  const tk=await getToken(getMessaging(app),{vapidKey:VAPID,serviceWorkerRegistration:reg});
+  if(!tk)return"FCM token পাওয়া যায়নি। Chrome update করে আবার চেষ্টা করো।";
+  await setDoc(doc(db,"users",U.uid),{fcms:arrayUnion(tk),pushEnabled:true,pushUpdatedAt:Date.now()},{merge:true});
+  return"Notifications enabled. এই ফোনে app বন্ধ থাকলেও message alert আসতে পারে।";
+ }catch(e){console.error("Push setup failed",e);return"Push setup failed: "+(e.message||e)}
+}
 async function showNotification(title,body,url="./"){
  if(!("Notification" in window)||Notification.permission!=="granted")return false;
  try{const reg=await navigator.serviceWorker.ready;await reg.showNotification(title,{body,icon:"icon-192.png",badge:"badge-72.png",vibrate:[200,100,200],tag:"our-life-test",renotify:true,data:{url}});return true}
@@ -542,7 +573,7 @@ document.addEventListener("click",async e=>{const t=e.target.closest("button,[da
  if(D.act==="norep"){replyTo=null;const rb=$("#rb");if(rb)rb.innerHTML=""}
  if(D.act==="theme"){theme=document.documentElement.dataset.th==="light"?"dark":"light";localStorage.setItem("th",theme);applyTheme();render(true)}
  if(D.th){theme=D.th;localStorage.setItem("th",theme);applyTheme();render(true)}
- if(D.act==="notif"){if(window.OurLifeAndroid||("Notification" in window)){const r=await enablePush();if(window.OurLifeAndroid)localStorage.setItem("nativePushStatus",r);else if(Notification.permission==="granted")await showNotification("Our Life 💕","Notification is working on this device!");render(true);alert(r)}else alert("This browser does not support notifications.")}
+ if(D.act==="notif"){const r=await enablePush();if(window.OurLifeAndroid)localStorage.setItem("nativePushStatus",r);else if("Notification" in window&&Notification.permission==="granted"){const ok=await showNotification("Our Life 💕","Notification is working on this device!");if(!ok)console.warn("Local notification test failed")}render(true);alert(r)}
  if(D.goto){const el=document.querySelector(`.msg[data-id="${D.goto}"]`);if(el){el.scrollIntoView({block:"center",behavior:"smooth"});el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),1300)}}
  if(D.act==="bk")backup();
  if(D.act==="rs")$("#bkf")?.click();
